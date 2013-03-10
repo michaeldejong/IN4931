@@ -8,12 +8,10 @@ public class Job implements Message {
 	
 	private final long id;
 	private final int duration;
-	private final State state;
 
-	public Job(long id, int duration, State state) {
+	public Job(long id, int duration) {
 		this.id = id;
 		this.duration = duration;
-		this.state = state;
 	}
 	
 	public long getId() {
@@ -24,12 +22,19 @@ public class Job implements Message {
 		return duration;
 	}
 	
-	public State getState() {
-		return state;
+	@Override
+	public int hashCode() {
+		return (int) (id % Integer.MAX_VALUE);
 	}
 	
-	public static enum State {
-		IDLE, RUNNING, FINISHED;
+	@Override
+	public boolean equals(Object other) {
+		return other instanceof Job && ((Job) other).id == id;
+	}
+	
+	@Override
+	public String toString() {
+		return "[Job:" + id + ", " + duration + "]";
 	}
 	
 }

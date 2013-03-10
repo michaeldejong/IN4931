@@ -1,6 +1,5 @@
 package nl.tudelft.in4931.dvgs.network;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -9,9 +8,7 @@ import java.util.Set;
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -22,30 +19,38 @@ public class Topology implements Message {
 	private static final long serialVersionUID = -991147078192111108L;
 	
 	private final Map<Address, TopologyParticipant> nodes;
+	private final transient List<TopologyListener> listeners;
 	
 	private transient final Address address;
 
 	private Topology() {
 		this.address = null;
 		this.nodes = Maps.newTreeMap();
+		this.listeners = Lists.newArrayList();
 	}
 	
 	public Topology(Address address, Role role) {
 		this.address = address;
 		this.nodes = Maps.newTreeMap();
+		this.listeners = Lists.newArrayList();
 		
 		nodes.put(address, new TopologyParticipant(address, 0, role));
 	}
 
 	public boolean knowsRoleOfNode(Address address) {
 		synchronized (nodes) {
-			return nodes.get(address) != null;
+			return nodes.containsKey(address);
 		}
 	}
 	
 	boolean removeNode(Address address) {
 		synchronized (nodes) {
-			return nodes.remove(address) != null;
+			TopologyParticipant removed = nodes.remove(address);
+			if (removed != null) {
+				notifyListenersOfLeft(removed.getAddress(), removed.getRole());
+				return true;
+			}
+			return false;
 		}
 	}
 
@@ -67,10 +72,18 @@ public class Topology implements Message {
 			for (Entry<Address, TopologyParticipant> entry : other.nodes.entrySet()) {
 				Address key = entry.getKey();
 				TopologyParticipant value = entry.getValue();
+				if (value == null) {
+					continue;
+				}
+				
 				TopologyParticipant participant = nodes.get(key);
 				
 				if (participant == null) {
+					boolean joined = !nodes.containsKey(key);
 					nodes.put(key, value);
+					if (joined) {
+						notifyListenersOfJoin(value.getAddress(), value.getRole());
+					}
 					modified = true;
 				}
 				else if (value != null) {
@@ -151,7 +164,7 @@ public class Topology implements Message {
 		return count;
 	}
 	
-	public Collection<Address> getSchedulers() {
+	public List<Address> getSchedulers() {
 		List<TopologyParticipant> schedulers = Lists.newArrayList();
 		synchronized (nodes) {
 			for (Entry<Address, TopologyParticipant> entry : nodes.entrySet()) {
@@ -163,11 +176,34 @@ public class Topology implements Message {
 		}
 		
 		Collections.sort(schedulers);
-		return Collections2.transform(schedulers, new Function<TopologyParticipant, Address>() {
-			public Address apply(TopologyParticipant input) {
-				return input.getAddress();
+		List<Address> addresses = Lists.newArrayList();
+		for (TopologyParticipant participant : schedulers) {
+			addresses.add(participant.getAddress());
+		}
+		
+		return addresses;
+	}
+
+	void notifyListenersOfJoin(Address address, Role role) {
+		synchronized (listeners) {
+			for (TopologyListener listener : listeners) {
+				listener.onNodeJoin(address, role);
 			}
-		});
+		}
+	}
+
+	void notifyListenersOfLeft(Address address, Role role) {
+		synchronized (listeners) {
+			for (TopologyListener listener : listeners) {
+				listener.onNodeLeft(address, role);
+			}
+		}
+	}
+
+	public void addListener(TopologyListener listener) {
+		synchronized (listeners) {
+			listeners.add(listener);
+		}
 	}
 
 }

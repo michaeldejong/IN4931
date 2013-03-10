@@ -14,14 +14,14 @@ import com.google.common.base.Joiner;
 
 public class SimpleTest {
 
-	private static final int NODE_BOOT_TIME = 2500;
+	private static final int NODE_BOOT_TIME = 200;
 	private static final int DISCOVERY_TIME = 6000;
 
 	@Test
 	public void testSimpleNetworkConnection() throws IOException, InterruptedException {
 		InetAddress localHost = InetAddress.getLocalHost();
 		Scheduler scheduler = new Scheduler(localHost);
-		ResourceManager resourceManager = new ResourceManager(localHost);
+		ResourceManager resourceManager = new ResourceManager(localHost, 1);
 		
 		Thread.sleep(NODE_BOOT_TIME);
 		
