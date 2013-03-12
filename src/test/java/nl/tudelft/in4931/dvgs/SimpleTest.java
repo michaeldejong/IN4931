@@ -14,8 +14,8 @@ import com.google.common.base.Joiner;
 
 public class SimpleTest {
 
-	private static final int NODE_BOOT_TIME = 200;
-	private static final int DISCOVERY_TIME = 6000;
+	private static final int NODE_BOOT_TIME = 1000;
+	private static final int DISCOVERY_TIME = 10000;
 
 	@Test
 	public void testSimpleNetworkConnection() throws IOException, InterruptedException {
@@ -37,7 +37,7 @@ public class SimpleTest {
 		Scheduler s3 = new Scheduler(localHost);
 		Scheduler s4 = new Scheduler(localHost);
 		
-		Thread.sleep(NODE_BOOT_TIME);
+		Thread.sleep(DISCOVERY_TIME);
 		
 		Collection<Address> schedulers1 = s1.getSchedulers();
 		Collection<Address> schedulers2 = s2.getSchedulers();
@@ -68,7 +68,7 @@ public class SimpleTest {
 		Thread.sleep(NODE_BOOT_TIME);
 		
 		Scheduler s4 = new Scheduler(localHost);
-		Thread.sleep(NODE_BOOT_TIME);
+		Thread.sleep(DISCOVERY_TIME);
 		
 		Collection<Address> schedulers1 = s1.getSchedulers();
 		Collection<Address> schedulers2 = s2.getSchedulers();
@@ -86,7 +86,7 @@ public class SimpleTest {
 		s4.die();
 	}
 
-	@Test(timeout = 30000)
+	@Test
 	public void testMasterCheck() throws IOException, InterruptedException {
 		InetAddress localHost = InetAddress.getLocalHost();
 		Scheduler s1 = new Scheduler(localHost);

@@ -7,6 +7,8 @@ import java.rmi.RemoteException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -21,10 +23,11 @@ import com.google.common.collect.Maps;
 public class TopologyAwareNode extends Node {
 	
 	private static final Logger log = LoggerFactory.getLogger(TopologyAwareNode.class);
-
+	
+	private final ScheduledThreadPoolExecutor poller = new ScheduledThreadPoolExecutor(5);
 	private final Map<Class<?>, Handler<?>> handlers = Maps.newHashMap();
 	private final ScheduledThreadPoolExecutor messenger;
-	private final ScheduledThreadPoolExecutor poller;
+	private final RemoteNodes remoteNodes;
 	private final Topology topology;
 
 	private volatile boolean alive = true;
@@ -33,8 +36,8 @@ public class TopologyAwareNode extends Node {
 		super(address);
 
 		this.messenger = new ScheduledThreadPoolExecutor(1);
-		this.poller = new ScheduledThreadPoolExecutor(5);
 		this.topology = new Topology(getLocalAddress(), role);
+		this.remoteNodes = new RemoteNodes();
 
 		registerMessageHandlers();
 		
@@ -51,11 +54,14 @@ public class TopologyAwareNode extends Node {
 	}
 	
 	public void addTopologyListener(TopologyListener listener) {
-		topology.addListener(listener);
+		synchronized (topology) {
+			topology.addListener(listener);
+		}
 	}
 	
 	public void die() {
 		if (alive) {
+			log.info("{} - Terminated", getLocalAddress());
 			alive = false;
 			poller.shutdownNow();
 			messenger.shutdownNow();
@@ -64,7 +70,7 @@ public class TopologyAwareNode extends Node {
 	}
 	
 	private void updateTopology(InetAddress localAddress) throws UnknownHostException {
-		log.trace("{} - Updating local topology...", getLocalAddress());
+		log.debug("{} - Updating local topology...", getLocalAddress());
 		Iterator<Address> iterator = new SubNetworkIterator(localAddress);
 		while (iterator.hasNext()) {
 			final Address address = iterator.next();
@@ -75,16 +81,24 @@ public class TopologyAwareNode extends Node {
 			poller.submit(new Runnable() {
 				@Override
 				public void run() {
-					boolean canConnect = canConnect(address);
-					boolean wasAlreadyKnown = topology.knowsRoleOfNode(address);
-					
-					if (!canConnect && wasAlreadyKnown) {
-						log.info("{} - Detected disconnected node: {}", getLocalAddress(), address);
-						onDisconnect(address);
+					try {
+						boolean canConnect = canConnect(address);
+						boolean wasAlreadyKnown;
+						synchronized (topology) {
+							wasAlreadyKnown = topology.knowsRoleOfNode(address);
+						}
+						
+						if (!canConnect && wasAlreadyKnown) {
+							log.warn("{} - Detected disconnected node: {}", getLocalAddress(), address);
+							onDisconnect(address);
+						}
+						else if (canConnect && !wasAlreadyKnown) {
+							log.debug("{} - Detected joined node: {}", getLocalAddress(), address);
+							onJoined(address);
+						}
 					}
-					else if (canConnect && !wasAlreadyKnown) {
-						log.info("{} - Detected joined node: {}", getLocalAddress(), address);
-						onJoined(address);
+					catch (Throwable e) {
+						log.error(e.getMessage(), e);
 					}
 				}
 			});
@@ -95,15 +109,20 @@ public class TopologyAwareNode extends Node {
 		messenger.submit(new Runnable() {
 			@Override
 			public void run() {
-				for (Address address : topology.getRemoteNodes()) {
-					sendAndWait(message, address, true);
+				Set<Address> remotes;
+				synchronized (topology) {
+					remotes = topology.getRemoteNodes();
+				}
+				
+				for (Address address : remotes) {
+					sendAndWait(message, address);
 				}
 			}
 		});
 	}
 
-	protected void broadcastToSchedulers(final Message message) {
-		messenger.submit(new Runnable() {
+	protected void toScheduler(final Message message, boolean fireAndForget) {
+		Future<?> future = messenger.submit(new Runnable() {
 			@Override
 			public void run() {
 				boolean replicated = false;
@@ -111,16 +130,31 @@ public class TopologyAwareNode extends Node {
 				
 				while (!replicated && iterator.hasNext()) {
 					Address scheduler = iterator.next();
-					if (sendAndWait(message, scheduler, true)) {
+					if (sendAndWait(message, scheduler)) {
+						log.debug("{} - Delivered message: {}", getLocalAddress(), message);
 						replicated = true;
 					}
+					else {
+						log.warn("{} - Could not replicate message to: {}", getLocalAddress(), scheduler);
+					}
+				}
+				
+				if (replicated) {
+					log.debug("{} - Successfully replicated message: {}", getLocalAddress(), message);
+				}
+				else {
+					log.error("{} - Message could not be delivered to the schedulers!", getLocalAddress());
 				}
 			}
 		});
+		
+		if (!fireAndForget) {
+			blockOnFuture(future);
+		}
 	}
 
-	protected void broadcastToBackupSchedulers(final Message message) {
-		messenger.submit(new Runnable() {
+	protected void toBackup(final Message message, boolean fireAndForget) {
+		Future<?> future = messenger.submit(new Runnable() {
 			@Override
 			public void run() {
 				boolean replicated = false;
@@ -131,42 +165,43 @@ public class TopologyAwareNode extends Node {
 				
 				while (!replicated && iterator.hasNext()) {
 					Address scheduler = iterator.next();
-					if (sendAndWait(message, scheduler, true)) {
+					if (sendAndWait(message, scheduler)) {
 						replicated = true;
 					}
 				}
 			}
 		});
+		
+		if (!fireAndForget) {
+			blockOnFuture(future);
+		}
 	}
 
 	protected void send(final Message message, final Address address) {
 		messenger.submit(new Runnable() {
 			@Override
 			public void run() {
-				sendAndWait(message, address, true);
+				sendAndWait(message, address);
 			}
 		});
 	}
 	
-	protected Topology getTopology() {
-		return topology;
-	}
-
 	private void registerMessageHandlers() {
 		on(Topology.class, new Handler<Topology>() {
 			@Override
 			public void onMessage(Topology other, Address origin) {
 				log.trace("{} - Received topology: {} from other node: {}", getLocalAddress(), other, origin);
 				
-				if (!topology.merge(other) && other.knowsRoleOfNode(getLocalAddress())) {
-					return;
-				}
-				
-				if (topology.size() > other.size()) {
-					sendTopology(origin);
-				}
-				else if (topology.size() < other.size()){
-					broadcastTopology();
+				synchronized (topology) {
+					if (!topology.merge(other) && other.knowsRoleOfNode(getLocalAddress())) {
+						return;
+					}
+					if (topology.size() > other.size()) {
+						sendTopology(origin);
+					}
+					else if (topology.size() < other.size()){
+						broadcastTopology();
+					}
 				}
 			}
 		});
@@ -185,7 +220,12 @@ public class TopologyAwareNode extends Node {
 	}
 
 	private void broadcastTopology() {
-		for (final Address address : topology.getRemoteNodes()) {
+		Set<Address> remotes;
+		synchronized (topology) {
+			remotes = topology.getRemoteNodes();
+		}
+		
+		for (final Address address : remotes) {
 			sendTopology(address);
 		}
 	}
@@ -194,7 +234,11 @@ public class TopologyAwareNode extends Node {
 		messenger.submit(new Runnable() {
 			@Override
 			public void run() {
-				sendAndWait(topology.copy(), address, true);
+				Topology copy;
+				synchronized (topology) {
+					copy = topology.copy();
+				}
+				sendAndWait(copy, address);
 			}
 		});
 	}
@@ -202,7 +246,7 @@ public class TopologyAwareNode extends Node {
 	private boolean canConnect(Address address) {
 		try {
 			log.trace("{} - Checking connection to: {}", getLocalAddress(), address);
-			RemoteNode.createProxy(address);
+			remoteNodes.createProxy(address, false);
 			return true;
 		} catch (RemoteException e) {
 			return false;
@@ -210,30 +254,36 @@ public class TopologyAwareNode extends Node {
 	}
 
 	private void onDisconnect(Address address) {
-		broadcast(new TopologyEvent(Type.LEFT, address));
-		if (topology.removeNode(address)) {
-			log.trace("{} - Removed node from topology: {}", getLocalAddress(), address);
+		log.error("Node: " + address + " dropped from the cluster!");
+		if (isScheduler()) {
+			toBackup(new TopologyEvent(Type.LEFT, address), true);
+		}
+		
+		synchronized (topology) {
+			if (topology.removeNode(address)) {
+				log.trace("{} - Removed node from topology: {}", getLocalAddress(), address);
+			}
 		}
 	}
 
 	private void onJoined(Address address) {
-		topology.joinNode(address);
+		synchronized (topology) {
+			topology.joinNode(address);
+		}
 		sendTopology(address);
 	}
 
-	protected boolean sendAndWait(Message message, Address address, boolean dropRemoteIfFailed) {
+	protected boolean sendAndWait(Message message, Address address) {
 		try {
 			if (!(message instanceof Topology)) {
 				log.debug("{} - Sending: {} to: {}", getLocalAddress(), message, address);
 			}
-			IRemoteObject proxy = RemoteNode.createProxy(address);
+			IRemoteObject proxy = remoteNodes.createProxy(address, true);
 			proxy.onMessage(message, getLocalAddress());
 			return true;
 		}
 		catch (RemoteException e) {
-			if (dropRemoteIfFailed) {
-				onDisconnect(address);
-			}
+			onDisconnect(address);
 			return false;
 		}
 	}
@@ -249,14 +299,14 @@ public class TopologyAwareNode extends Node {
 	}
 
 	private <M extends Message> void replicateMessageToBackup(M message, Address from) {
-		boolean replicate = true;
+		boolean replicated = false;
 		Address backup = getBackupOf(getLocalAddress());
-		while (backup != null && replicate) {
+		while (backup != null && !replicated) {
 			try {
 				log.debug("{} - Replicating: {} to: {}", getLocalAddress(), message, backup);
-				IRemoteObject proxy = RemoteNode.createProxy(backup);
+				IRemoteObject proxy = remoteNodes.createProxy(backup, true);
 				proxy.onMessage(message, from);
-				replicate = false;
+				replicated = true;
 			}
 			catch (RemoteException e) {
 				topology.removeNode(backup);
@@ -264,13 +314,27 @@ public class TopologyAwareNode extends Node {
 			}
 		}
 
-		if (backup == null) {
+		if (backup == null || !replicated) {
 			handleMessage(message, from);
 		}
 	}
 
+	public int getNumberOfRemotes() {
+		synchronized (topology) {
+			return topology.getRemoteNodes().size();
+		}
+	}
+
 	public List<Address> getSchedulers() {
-		return topology.getSchedulers();
+		synchronized (topology) {
+			return topology.getSchedulers();
+		}
+	}
+
+	public List<Address> getResourceManagers() {
+		synchronized (topology) {
+			return topology.getResourceManagers();
+		}
 	}
 
 	public boolean isMasterScheduler() {
@@ -312,6 +376,16 @@ public class TopologyAwareNode extends Node {
 			throw new IllegalArgumentException("Handler for message type; " + type.getSimpleName() + " is already registered!");
 		}
 		handlers.put(type, handler);
+	}
+
+	private void blockOnFuture(Future<?> future) {
+		while (!future.isDone() && !future.isCancelled()) {
+			try {
+				Thread.sleep(50);
+			} catch (InterruptedException e) {
+				log.warn(e.getMessage(), e);
+			}
+		}
 	}
 
 }

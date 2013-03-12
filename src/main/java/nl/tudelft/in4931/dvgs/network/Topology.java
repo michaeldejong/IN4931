@@ -120,26 +120,30 @@ public class Topology implements Message {
 	
 	@Override
 	public int hashCode() {
-		return new HashCodeBuilder().append(nodes).toHashCode();
+		synchronized (nodes) {
+			return new HashCodeBuilder().append(nodes).toHashCode();
+		}
 	}
 	
 	@Override
 	public boolean equals(Object other) {
-		if (other instanceof Topology) {
-			Topology topo = (Topology) other;
-			if (nodes.size() != topo.nodes.size()) {
-				return false;
-			}
-			
-			for (Entry<Address, TopologyParticipant> entry : nodes.entrySet()) {
-				TopologyParticipant participant = topo.nodes.get(entry.getValue());
-				if ((participant == null && entry.getValue() != null) || (participant != null && !participant.equals(entry.getValue()))) {
+		synchronized (nodes) {
+			if (other instanceof Topology) {
+				Topology topo = (Topology) other;
+				if (nodes.size() != topo.nodes.size()) {
 					return false;
 				}
+				
+				for (Entry<Address, TopologyParticipant> entry : nodes.entrySet()) {
+					TopologyParticipant participant = topo.nodes.get(entry.getValue());
+					if ((participant == null && entry.getValue() != null) || (participant != null && !participant.equals(entry.getValue()))) {
+						return false;
+					}
+				}
+				return true;
 			}
-			return true;
+			return false;
 		}
-		return false;
 	}
 	
 	public Topology copy() {
@@ -163,22 +167,29 @@ public class Topology implements Message {
 		}
 		return count;
 	}
+
+	public List<Address> getResourceManagers() {
+		return listParticipants(Role.RESOURCE_MANAGER);
+	}
 	
 	public List<Address> getSchedulers() {
-		List<TopologyParticipant> schedulers = Lists.newArrayList();
+		return listParticipants(Role.SCHEDULER);
+	}
+		
+	private List<Address> listParticipants(Role role) {
+		List<Address> addresses = Lists.newArrayList();
 		synchronized (nodes) {
+			List<TopologyParticipant> participants = Lists.newArrayList();
 			for (Entry<Address, TopologyParticipant> entry : nodes.entrySet()) {
 				TopologyParticipant participant = entry.getValue();
-				if (participant != null && participant.getRole() == Role.SCHEDULER) {
-					schedulers.add(participant);
+				if (participant != null && participant.getRole() == role) {
+					participants.add(participant);
 				}
 			}
-		}
-		
-		Collections.sort(schedulers);
-		List<Address> addresses = Lists.newArrayList();
-		for (TopologyParticipant participant : schedulers) {
-			addresses.add(participant.getAddress());
+			Collections.sort(participants);
+			for (TopologyParticipant participant : participants) {
+				addresses.add(participant.getAddress());
+			}
 		}
 		
 		return addresses;

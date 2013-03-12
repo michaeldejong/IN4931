@@ -1,8 +1,8 @@
 package nl.tudelft.in4931.dvgs.models;
 
-import nl.tudelft.in4931.dvgs.network.Message;
+import java.io.Serializable;
 
-public class Job implements Message {
+public class Job implements Serializable {
 	
 	private static final long serialVersionUID = -5550514054455665498L;
 	

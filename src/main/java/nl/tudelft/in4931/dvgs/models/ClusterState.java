@@ -44,14 +44,14 @@ public class ClusterState implements Message {
 		}
 	}
 	
-	public void update(Job job, State state, double utilization, Address resourceManager) {
+	public void update(Jobs jobs, State state, double utilization, Address resourceManager) {
 		synchronized (clusterUtilizations) {
 			clusterUtilizations.put(resourceManager, utilization);
 		}
 		
 		if (state == State.RESCHEDULE) {
 			synchronized (pendingJobs) {
-				pendingJobs.add(job);
+				pendingJobs.addAll(jobs.getJobs());
 			}
 		}
 		else {
@@ -63,10 +63,14 @@ public class ClusterState implements Message {
 				}
 				
 				if (state == State.FINISHED) {
-					managerState.remove(job);
+					for (Job job : jobs.getJobs()) {
+						managerState.remove(job);
+					}
 				}
 				else {
-					managerState.put(job, state);
+					for (Job job : jobs.getJobs()) {
+						managerState.put(job, state);
+					}
 				}
 			}
 		}
@@ -96,6 +100,18 @@ public class ClusterState implements Message {
 	@Override
 	public String toString() {
 		return  "[ClusterState: [" + Joiner.on(",").join(pendingJobs) + "]]"; 
+	}
+
+	public List<Job> getPendingJobs() {
+		synchronized (pendingJobs) {
+			return pendingJobs;
+		}
+	}
+	
+	public void clearPendingJobs() {
+		synchronized (pendingJobs) {
+			pendingJobs.clear();
+		}
 	}
 
 }
