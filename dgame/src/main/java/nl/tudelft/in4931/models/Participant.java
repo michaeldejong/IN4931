@@ -1,31 +1,48 @@
 package nl.tudelft.in4931.models;
 
-public abstract class Participant {
+import nl.tudelft.in4931.network.Message;
+
+public abstract class Participant implements Message {
 			
-	private int hp;
-	private int ap;
+	private static final long serialVersionUID = -2286173819285841233L;
 	
-	public Participant(int hp, int ap) {
+	private final String name;
+	private final int hp;
+	private final int ap;
+	
+	public Participant(String name, int hp, int ap) {
+		this.name = name;
 		this.hp = hp;
 		this.ap = ap;
-	}
-	
-	public void setHp(int hp) {
-		this.hp = hp;
 	}
 	
 	public int getHp() {
 		return hp;
 	}
 	
-	public void setAp(int ap) {
-		this.ap = ap;
-	}
-	
 	public int getAp() {
 		return ap;
 	}
+	
+	public String getName() {
+		return name;
+	}
 
 	public abstract Participant copy();
+	
+	public enum Type {
+		PLAYER {
+			public Participant create(String name) {
+				return new Player(name);
+			}
+		},
+		DRAGON {
+			public Participant create(String name) {
+				return new Dragon(name);
+			}
+		};
+		
+		public abstract Participant create(String name);
+	}
 	
 }

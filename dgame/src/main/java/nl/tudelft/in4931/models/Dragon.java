@@ -5,12 +5,14 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 public class Dragon extends Participant {
 	
-	public Dragon() {
-		this(75, 20);
+	private static final long serialVersionUID = -5514869993497642721L;
+
+	public Dragon(String name) {
+		this(name, 75, 20);
 	}
 
-	Dragon(int hp, int ap) {
-		super(75, 20);
+	Dragon(String name, int hp, int ap) {
+		super(name, 75, 20);
 	}
 	
 	@Override
@@ -34,7 +36,7 @@ public class Dragon extends Participant {
 
 	@Override
 	public Dragon copy() {
-		return new Dragon(getHp(), getAp());
+		return new Dragon(getName(), getHp(), getAp());
 	}
 	
 }

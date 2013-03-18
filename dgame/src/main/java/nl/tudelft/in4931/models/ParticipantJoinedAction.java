@@ -2,7 +2,9 @@ package nl.tudelft.in4931.models;
 
 public class ParticipantJoinedAction extends Action {
 
-	public ParticipantJoinedAction(long time, Participant participant) {
+	private static final long serialVersionUID = 2242628222694740111L;
+
+	public ParticipantJoinedAction(Long time, Participant participant) {
 		super(time, participant);
 	}
 

@@ -5,24 +5,26 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 public class Player extends Participant {
 	
-	public Player() {
-		this(75, 20);
+	private static final long serialVersionUID = 9195294904301562210L;
+
+	public Player(String name) {
+		this(name, 75, 20);
 	}
 
-	Player(int hp, int ap) {
-		super(75, 20);
+	Player(String name, int hp, int ap) {
+		super(name, 75, 20);
 	}
 	
 	@Override
 	public int hashCode() {
-		return new HashCodeBuilder().append(getHp()).append(getAp()).toHashCode();
+		return new HashCodeBuilder().append(getName()).append(getHp()).append(getAp()).toHashCode();
 	}
 	
 	@Override
 	public boolean equals(Object other) {
 		if (other instanceof Player) {
 			Player o = (Player) other;
-			return new EqualsBuilder().append(getHp(), o.getHp()).append(getAp(), o.getAp()).isEquals();
+			return new EqualsBuilder().append(getName(), o.getName()).append(getHp(), o.getHp()).append(getAp(), o.getAp()).isEquals();
 		}
 		return false;
 	}
@@ -34,7 +36,7 @@ public class Player extends Participant {
 
 	@Override
 	public Player copy() {
-		return new Player(getHp(), getAp());
+		return new Player(getName(), getHp(), getAp());
 	}
 	
 }

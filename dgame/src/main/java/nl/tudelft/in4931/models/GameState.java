@@ -5,9 +5,13 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import nl.tudelft.in4931.network.Message;
+
 import com.google.common.collect.Maps;
 
-public class GameState {
+public class GameState implements Message {
+	
+	private static final long serialVersionUID = 765554451275918821L;
 	
 	public static final int WIDTH = 25;
 	public static final int HEIGHT = 25;

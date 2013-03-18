@@ -2,10 +2,14 @@ package nl.tudelft.in4931.models;
 
 import java.util.Random;
 
+import nl.tudelft.in4931.network.Message;
+
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-public class Position {
+public class Position implements Message {
+
+	private static final long serialVersionUID = -2087274577522934039L;
 
 	public static Position randomPosition(int i, int j) {
 		Random random = new Random(System.nanoTime());

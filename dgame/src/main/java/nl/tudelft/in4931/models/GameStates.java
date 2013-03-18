@@ -4,9 +4,9 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 
-public class GameStates {
+public class GameStates implements Runnable {
 	
-	private final ActionLog log = new ActionLog();
+	private final ActionLog actionLog = new ActionLog();
 	private final List<GameState> states = Lists.newArrayList();
 	private final List<Listener> listeners = Lists.newArrayList();
 	
@@ -20,7 +20,7 @@ public class GameStates {
 	
 	public void onAction(Action action) {
 		synchronized (lock) {
-			Long revertToTime = log.insertAction(action);
+			Long revertToTime = actionLog.insertAction(action);
 			if (revertToTime == null) {
 				ensureSnapshot(action.getTime());
 				return;
@@ -51,10 +51,24 @@ public class GameStates {
 		}
 	}
 
+	@Override
+	public void run() {
+		synchronized (lock) {
+			if (states.isEmpty()) {
+				return;
+			}
+			
+			GameState previousState = states.get(states.size() - 1);
+			if (previousState != null && actionLog.iterateOnwardsFrom(previousState.getTime() + 1).hasNext()) {
+				ensureSnapshot(previousState.getTime() + 1);
+			}
+		}
+	}
+
 	private void ensureSnapshot(long time) {
 		synchronized (lock) {
 			if (states.isEmpty()) {
-				GameState newState = GameState.from(log.iterateAll());
+				GameState newState = GameState.from(actionLog.iterateAll());
 				states.add(newState);
 				notifyListeners(newState);
 				return;
@@ -62,7 +76,7 @@ public class GameStates {
 			
 			GameState previousState = states.get(states.size() - 1);
 			if (time >= previousState.getTime() + 100) {
-				GameState newState = GameState.from(previousState, log.iterateOnwardsFrom(previousState.getTime() + 1));
+				GameState newState = GameState.from(previousState, actionLog.iterateOnwardsFrom(previousState.getTime() + 1));
 				states.add(newState);
 				notifyListeners(newState);
 			}

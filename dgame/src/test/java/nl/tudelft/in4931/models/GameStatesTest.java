@@ -29,8 +29,8 @@ public class GameStatesTest {
 			}
 		});
 		
-		Dragon dragon = new Dragon();
-		states.onAction(new ParticipantJoinedAction(100, dragon));
+		Dragon dragon = new Dragon("Player #1");
+		states.onAction(new ParticipantJoinedAction(100L, dragon));
 		
 		while (counter.get() == null) { /* Busy wait until received updated GameState. */ }
 
@@ -55,8 +55,8 @@ public class GameStatesTest {
 			}
 		});
 		
-		Player player = new Player();
-		states.onAction(new ParticipantJoinedAction(300, player));
+		Player player = new Player("Player #2");
+		states.onAction(new ParticipantJoinedAction(300L, player));
 		
 		while (counter.get() == null) { /* Busy wait until received updated GameState. */ }
 
@@ -81,8 +81,8 @@ public class GameStatesTest {
 			}
 		});
 		
-		Player player = new Player();
-		states.onAction(new ParticipantJoinedAction(200, player));
+		Player player = new Player("Player #3");
+		states.onAction(new ParticipantJoinedAction(200L, player));
 		
 		while (counter.get() == null) { /* Busy wait until received updated GameState. */ }
 
@@ -90,7 +90,7 @@ public class GameStatesTest {
 		Map<Participant, Position> participants = gameState.getParticipants();
 		
 		Assert.assertEquals(300, gameState.getTime());
-		Assert.assertEquals(2, participants.size());
+		Assert.assertEquals(3, participants.size());
 		Assert.assertTrue(participants.containsKey(player));
 	}
 	
@@ -107,8 +107,8 @@ public class GameStatesTest {
 			}
 		});
 		
-		Player player = new Player();
-		states.onAction(new ParticipantJoinedAction(0, player));
+		Player player = new Player("Player #4");
+		states.onAction(new ParticipantJoinedAction(0L, player));
 		
 		while (counter.get() == null) { /* Busy wait until received updated GameState. */ }
 
