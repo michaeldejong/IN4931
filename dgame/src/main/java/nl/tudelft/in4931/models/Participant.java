@@ -1,6 +1,6 @@
 package nl.tudelft.in4931.models;
 
-public class Participant {
+public abstract class Participant {
 			
 	private int hp;
 	private int ap;
@@ -25,5 +25,7 @@ public class Participant {
 	public int getAp() {
 		return ap;
 	}
+
+	public abstract Participant copy();
 	
 }
