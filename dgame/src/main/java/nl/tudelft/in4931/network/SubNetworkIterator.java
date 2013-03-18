@@ -8,7 +8,7 @@ import com.google.common.collect.Range;
 
 public class SubNetworkIterator implements Iterator<Address> {
 	
-	public static final Range<Integer> PORTS = Range.closed(1100, 1200);
+	public static final Range<Integer> PORTS = Range.closed(1100, 1300);
 
 	private final InetAddress local;
 	private final boolean localOnly;

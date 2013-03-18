@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 
-public class GameStates implements Runnable {
+public class GameStates {
 	
 	private final ActionLog actionLog = new ActionLog();
 	private final List<GameState> states = Lists.newArrayList();
@@ -51,20 +51,6 @@ public class GameStates implements Runnable {
 		}
 	}
 
-	@Override
-	public void run() {
-		synchronized (lock) {
-			if (states.isEmpty()) {
-				return;
-			}
-			
-			GameState previousState = states.get(states.size() - 1);
-			if (previousState != null && actionLog.iterateOnwardsFrom(previousState.getTime() + 1).hasNext()) {
-				ensureSnapshot(previousState.getTime() + 1);
-			}
-		}
-	}
-
 	private void ensureSnapshot(long time) {
 		synchronized (lock) {
 			if (states.isEmpty()) {
@@ -75,7 +61,7 @@ public class GameStates implements Runnable {
 			}
 			
 			GameState previousState = states.get(states.size() - 1);
-			if (time >= previousState.getTime() + 100) {
+			if (time >= previousState.getTime()) {
 				GameState newState = GameState.from(previousState, actionLog.iterateOnwardsFrom(previousState.getTime() + 1));
 				states.add(newState);
 				notifyListeners(newState);

@@ -7,5 +7,10 @@ public class ParticipantJoinedAction extends Action {
 	public ParticipantJoinedAction(Long time, Participant participant) {
 		super(time, participant);
 	}
+	
+	@Override
+	public String toString() {
+		return "[Join time: " + getTime() + " participant: " + getParticipant() + "]";
+	}
 
 }

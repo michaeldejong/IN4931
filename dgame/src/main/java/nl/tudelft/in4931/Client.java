@@ -10,13 +10,12 @@ import nl.tudelft.in4931.models.Participant;
 import nl.tudelft.in4931.models.ParticipantJoinedAction;
 import nl.tudelft.in4931.network.Address;
 import nl.tudelft.in4931.network.Handler;
-import nl.tudelft.in4931.network.Role;
-import nl.tudelft.in4931.network.TopologyAwareNode;
+import nl.tudelft.in4931.network.NodeWithHandlers;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Client extends TopologyAwareNode {
+public class Client extends NodeWithHandlers {
 	
 	private static final Logger log = LoggerFactory.getLogger(Client.class);
 
@@ -27,7 +26,7 @@ public class Client extends TopologyAwareNode {
 	private Address server;
 
 	public Client(InetAddress address, Participant.Type type, String name) throws IOException {
-		super(address, Role.CLIENT);
+		super(address);
 		log.info("{} - Started client...", getLocalAddress());
 		
 		this.gameState = new AtomicReference<>();
@@ -41,6 +40,7 @@ public class Client extends TopologyAwareNode {
 		on(GameState.class, new Handler<GameState>() {
 			@Override
 			public void onMessage(GameState state, Address origin) {
+				log.info("{} - Received new game state: {}", getLocalAddress(), state);
 				gameState.set(state);
 			}
 		});
@@ -51,7 +51,9 @@ public class Client extends TopologyAwareNode {
 	}
 	
 	public void join() {
-		send(new ParticipantJoinedAction(null, type.create(name)), server);
+		ParticipantJoinedAction message = new ParticipantJoinedAction(null, type.create(name));
+		log.info("{} - Sending join action: {} to server: {}", getLocalAddress(), message, server);
+		send(message, server);
 		
 		while (gameState.get() == null) {
 			try {
@@ -68,6 +70,11 @@ public class Client extends TopologyAwareNode {
 	
 	protected GameState getGameState() {
 		return gameState.get();
+	}
+	
+	@Override
+	public String toString() {
+		return "[Client: " + name + "]";
 	}
 
 }

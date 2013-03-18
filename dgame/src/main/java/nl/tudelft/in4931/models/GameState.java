@@ -23,7 +23,7 @@ public class GameState implements Message {
 	public static GameState from(GameState previousState, Iterator<Action> iterator) {
 		GameState state = previousState == null ? new GameState() : previousState.copy();
 		
-		long time = 0;
+		long time = state.getTime();
 		while (iterator.hasNext()) {
 			Action action = iterator.next();
 			time = action.getTime();
@@ -71,6 +71,11 @@ public class GameState implements Message {
 
 	public Map<Participant, Position> getParticipants() {
 		return Collections.unmodifiableMap(participants);
+	}
+	
+	@Override
+	public String toString() {
+		return "[GameState time: " + time + " participants: " + participants.size() + "]";
 	}
 	
 }

@@ -20,7 +20,7 @@ public class ActionLog {
 			}
 			
 			Action previousAction = actions.get(actions.size() - 1);
-			if (previousAction.getTime() <= action.getTime()) {
+			if (previousAction.getTime() < action.getTime()) {
 				actions.add(action);
 				return null;
 			}
@@ -31,14 +31,14 @@ public class ActionLog {
 			}
 			
 			actions.add(index + 1, action);
-			return action.getTime();
+			return action.getTime() - 1;
 		}
 	}
 	
 	public Iterator<Action> iterateOnwardsFrom(long time) {
 		synchronized (actions) {
 			int index = actions.size() - 1;
-			while (index > 0 && actions.get(index).getTime() > time) {
+			while (index > 0 && actions.get(index).getTime() >= time) {
 				index--;
 			}
 			

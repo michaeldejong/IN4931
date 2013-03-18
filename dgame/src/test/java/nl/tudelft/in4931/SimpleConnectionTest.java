@@ -10,7 +10,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-public class SimpleTest {
+import com.google.common.collect.Sets;
+
+public class SimpleConnectionTest {
 
 	private Server server1, server2;
 	private Client client1, client2;
@@ -23,6 +25,9 @@ public class SimpleTest {
 		client1 = new Client(local, Type.PLAYER, "Client #1");
 		client2 = new Client(local, Type.PLAYER, "Client #2");
 		
+		server1.setServers(Sets.newHashSet(server2.getLocalAddress()));
+		server2.setServers(Sets.newHashSet(server1.getLocalAddress()));
+		
 		client1.setServer(server1.getLocalAddress());
 		client2.setServer(server2.getLocalAddress());
 		
@@ -34,9 +39,9 @@ public class SimpleTest {
 		client1.join();
 		Assert.assertEquals(1, client1.getGameState().getParticipants().size());
 
-		Thread.sleep(500);
-		
 		client2.join();
+		Thread.sleep(100);
+		
 		Assert.assertEquals(2, client1.getGameState().getParticipants().size());
 		Assert.assertEquals(2, client2.getGameState().getParticipants().size());
 	}

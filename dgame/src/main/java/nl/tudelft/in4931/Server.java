@@ -3,6 +3,9 @@ package nl.tudelft.in4931;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicLong;
 
 import nl.tudelft.in4931.models.Action;
 import nl.tudelft.in4931.models.GameState;
@@ -11,24 +14,30 @@ import nl.tudelft.in4931.models.GameStates.Listener;
 import nl.tudelft.in4931.models.ParticipantJoinedAction;
 import nl.tudelft.in4931.network.Address;
 import nl.tudelft.in4931.network.Handler;
-import nl.tudelft.in4931.network.Role;
-import nl.tudelft.in4931.network.TopologyAwareNode;
+import nl.tudelft.in4931.network.NodeWithHandlers;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
-public class Server extends TopologyAwareNode implements Listener {
+public class Server extends NodeWithHandlers implements Listener {
 	
 	private static final Logger log = LoggerFactory.getLogger(Server.class);
-
-	private final Map<Address, String> participants = Maps.newHashMap();
 	
+	private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+
+	private final Set<Address> servers = Sets.newHashSet();
+	private final Map<Address, String> participants = Maps.newHashMap();
+	private final AtomicLong time = new AtomicLong(0);
 	private final GameStates gameStates;
 	
+	private final Object lock = new Object();
+	
 	public Server(InetAddress address) throws IOException {
-		super(address, Role.SERVER);
+		super(address);
 		log.info("{} - Started server...", getLocalAddress());
 		
 		gameStates = new GameStates();
@@ -37,26 +46,44 @@ public class Server extends TopologyAwareNode implements Listener {
 		registerMessageHandlers();
 	}
 	
+	public void setServers(Set<Address> addresses) {
+		synchronized (servers) {
+			servers.clear();
+			servers.addAll(addresses);
+		}
+	}
+	
 	private void registerMessageHandlers() {
 		on(Action.class, new Handler<Action>() {
 			@Override
-			public void onMessage(Action action, Address origin) {
+			public void onMessage(final Action action, final Address origin) {
 				log.info("{} - Received action: {} from: {}", getLocalAddress(), action, origin);
-				
-				boolean fromServer = true;
-				if (action.getTime() == null) {
-					action.setTime(System.currentTimeMillis());
-					fromServer = false;
-				}
-				
-				if (!fromServer && action instanceof ParticipantJoinedAction) {
-					log.info("{} - Added client: {}", getLocalAddress(), origin);
-					participants.put(origin, action.getParticipant().getName());
-				}
-				
-				gameStates.onAction(action);
-				if (!fromServer) {
-					multicast(action, getServers());
+				synchronized (lock) {
+					executor.submit(new Runnable() {
+						@Override
+						public void run() {
+							boolean fromServer = true;
+							if (action.getTime() == null) {
+								action.setTime(time.incrementAndGet());
+								fromServer = false;
+							}
+							else {
+								synchronized (time) {
+									time.set(Math.max(time.get(), action.getTime() + 1));
+								}
+							}
+							
+							if (!fromServer && action instanceof ParticipantJoinedAction) {
+								log.debug("{} - Added client: {}", getLocalAddress(), origin);
+								participants.put(origin, action.getParticipant().getName());
+							}
+							
+							gameStates.onAction(action);
+							if (!fromServer) {
+								multicast(action, servers);
+							}
+						}
+					});
 				}
 			}
 		});
@@ -64,8 +91,9 @@ public class Server extends TopologyAwareNode implements Listener {
 
 	@Override
 	public void onUpdate(GameState state) {
-		log.info("{} - Game state changed: multicasting to clients...", getLocalAddress());
-		multicast(state, participants.keySet());
+		Set<Address> clients = participants.keySet();
+		log.info("{} - Sending state: {} to clients: {}", getLocalAddress(), state, Joiner.on(", ").join(clients));
+		multicast(state, clients);
 	}
 
 }
