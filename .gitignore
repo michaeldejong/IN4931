@@ -2,3 +2,8 @@
 .project
 .settings/
 target/
+
+docs/*.out
+docs/*.log
+docs/*.aux
+docs/*.synctex.gz
