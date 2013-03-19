@@ -4,14 +4,14 @@ public class HealAction extends Action {
 
 	private static final long serialVersionUID = 6723052501010411984L;
 	
-	private final Participant target;
+	private final String target;
 
-	public HealAction(long time, Participant participant, Participant target) {
-		super(time, participant);
+	public HealAction(Long time, String target) {
+		super(time);
 		this.target = target;
 	}
 	
-	public Participant getTarget() {
+	public String getTarget() {
 		return target;
 	}
 	

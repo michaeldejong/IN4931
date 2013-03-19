@@ -2,6 +2,7 @@ package nl.tudelft.in4931.models;
 
 import java.util.Random;
 
+import nl.tudelft.in4931.models.MoveAction.Direction;
 import nl.tudelft.in4931.network.Message;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
@@ -49,6 +50,34 @@ public class Position implements Message {
 	@Override
 	public String toString() {
 		return "(" + x + ", " + y + ")";
+	}
+
+	public int distance(Position other) {
+		int dX = Math.abs(other.getX() - getX());
+		int dY = Math.abs(other.getY() - getY());
+		return dX + dY;
+	}
+	
+	public Direction moveTo(Position other) {
+		int dX = other.getX() - getX();
+		int dY = other.getY() - getY();
+
+//		if (dX == 0) {
+//			return dY > 0 ? Direction.UP : Direction.DOWN;
+//		}
+//		else if (dY == 0) {
+//			return dX > 0 ? Direction.RIGHT : Direction.LEFT;
+//		}
+
+		double r = Math.random();
+		if (r > Math.abs(dY / Math.max(1, dX))) {
+			return dX > 0 ? Direction.RIGHT : Direction.LEFT;
+		}
+		return dY > 0 ? Direction.UP : Direction.DOWN;
+	}
+
+	public Position moveTo(Direction direction) {
+		return new Position(direction.getDx() + x, direction.getDy() + y);
 	}
 	
 }

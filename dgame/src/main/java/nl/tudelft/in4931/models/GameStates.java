@@ -72,13 +72,13 @@ public class GameStates {
 	private void notifyListeners(GameState state) {
 		synchronized (listeners) {
 			for (Listener listener : listeners) {
-				listener.onUpdate(state);
+				listener.onGameState(state);
 			}
 		}
 	}
 
 	public interface Listener {
-		void onUpdate(GameState state);
+		void onGameState(GameState state);
 	}
 	
 }

@@ -6,13 +6,11 @@ public class Action implements Message {
 	
 	private static final long serialVersionUID = 2577229307016464915L;
 	
-	private final Participant participant;
-	
 	private Long time;
+	private String participant;
 
-	public Action(Long time, Participant participant) {
+	public Action(Long time) {
 		this.time = time;
-		this.participant = participant;
 	}
 	
 	public Long getTime() {
@@ -23,8 +21,12 @@ public class Action implements Message {
 		this.time = time;
 	}
 	
-	public Participant getParticipant() {
+	public String getParticipant() {
 		return participant;
+	}
+
+	public void setParticipant(String participant) {
+		this.participant = participant;
 	}
 	
 }

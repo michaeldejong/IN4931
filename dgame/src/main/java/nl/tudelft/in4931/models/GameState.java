@@ -34,7 +34,7 @@ public class GameState implements Message {
 		return state;
 		
 	}
-
+	
 	private final Map<Participant, Position> participants;
 	private long time = 0;
 	
@@ -53,7 +53,45 @@ public class GameState implements Message {
 	private void process(Action action) {
 		if (action instanceof ParticipantJoinedAction) {
 			ParticipantJoinedAction joinAction = (ParticipantJoinedAction) action;
-			participants.put(joinAction.getParticipant(), Position.randomPosition(WIDTH, HEIGHT));
+			Participant participant = joinAction.getType().create(joinAction.getName());
+			participants.put(participant, joinAction.getPosition());
+		}
+		else if (action instanceof HealAction) {
+			HealAction healAction = (HealAction) action;
+			Entry<Participant, Position> entry = getByName(healAction.getTarget());
+			Entry<Participant, Position> self = getByName(action.getParticipant());
+			if (!entry.getKey().getName().equals(self.getKey().getName()) && entry.getValue().distance(self.getValue()) <= 5) {
+				Participant newParticipant = entry.getKey().deltaHp(self.getKey().getAp());
+				if (newParticipant.getHp() > 20) {
+					newParticipant = newParticipant.setHp(20);
+				}
+				participants.remove(entry.getKey());
+				participants.put(newParticipant, entry.getValue());
+			}
+		}
+		else if (action instanceof AttackAction) {
+			AttackAction attackAction = (AttackAction) action;
+			Entry<Participant, Position> entry = getByName(attackAction.getTarget());
+			Entry<Participant, Position> self = getByName(action.getParticipant());
+			if (!entry.getKey().getName().equals(self.getKey().getName()) && entry.getValue().distance(self.getValue()) <= 2) {
+				Participant newParticipant = entry.getKey().deltaHp(-1 * self.getKey().getAp());
+				if (newParticipant.getHp() < 0) {
+					newParticipant = newParticipant.setHp(0);
+				}
+				participants.remove(entry.getKey());
+				
+				if (newParticipant.getHp() > 0) {
+					participants.put(newParticipant, entry.getValue());
+				}
+			}
+		}
+		else if (action instanceof MoveAction) {
+			MoveAction moveAction = (MoveAction) action;
+			Entry<Participant, Position> self = getByName(action.getParticipant());
+			Position newPosition = self.getValue().moveTo(moveAction.getDirection());
+			if (!participants.containsValue(newPosition)) {
+				participants.put(self.getKey(), newPosition);
+			}
 		}
 	}
 
@@ -68,6 +106,24 @@ public class GameState implements Message {
 		
 		return state;
 	}
+	
+	public Entry<Participant, Position> getByName(String name) {
+		for (Entry<Participant, Position> entry : participants.entrySet()) {
+			if (entry.getKey().getName().equals(name)) {
+				return entry;
+			}
+		}
+		return null;
+	}
+
+	public Entry<Participant, Position> getByPosition(Position position) {
+		for (Entry<Participant, Position> entry : participants.entrySet()) {
+			if (entry.getValue().equals(position)) {
+				return entry;
+			}
+		}
+		return null;
+	}
 
 	public Map<Participant, Position> getParticipants() {
 		return Collections.unmodifiableMap(participants);
@@ -75,7 +131,18 @@ public class GameState implements Message {
 	
 	@Override
 	public String toString() {
-		return "[GameState time: " + time + " participants: " + participants.size() + "]";
+		return "[GameState time: " + time + " participants(" + participants.size() + "): " + toString(participants) + "]";
+	}
+
+	private String toString(Map<Participant, Position> participants) {
+		StringBuilder builder = new StringBuilder();
+		for (Entry<Participant, Position> entry : participants.entrySet()) {
+			if (builder.length() > 0) {
+				builder.append(", ");
+			}
+			builder.append(entry.getKey() + "=" + entry.getValue());
+		}
+		return builder.toString();
 	}
 	
 }

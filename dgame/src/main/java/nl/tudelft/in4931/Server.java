@@ -12,6 +12,7 @@ import nl.tudelft.in4931.models.GameState;
 import nl.tudelft.in4931.models.GameStates;
 import nl.tudelft.in4931.models.GameStates.Listener;
 import nl.tudelft.in4931.models.ParticipantJoinedAction;
+import nl.tudelft.in4931.models.Position;
 import nl.tudelft.in4931.network.Address;
 import nl.tudelft.in4931.network.Handler;
 import nl.tudelft.in4931.network.NodeWithHandlers;
@@ -46,6 +47,12 @@ public class Server extends NodeWithHandlers implements Listener {
 		registerMessageHandlers();
 	}
 	
+	public void registerListener(Listener listener) {
+		synchronized (lock) {
+			gameStates.addListener(listener);
+		}
+	}
+	
 	public void setServers(Set<Address> addresses) {
 		synchronized (servers) {
 			servers.clear();
@@ -57,7 +64,7 @@ public class Server extends NodeWithHandlers implements Listener {
 		on(Action.class, new Handler<Action>() {
 			@Override
 			public void onMessage(final Action action, final Address origin) {
-				log.info("{} - Received action: {} from: {}", getLocalAddress(), action, origin);
+				log.debug("{} - Received action: {} from: {}", getLocalAddress(), action, origin);
 				synchronized (lock) {
 					executor.submit(new Runnable() {
 						@Override
@@ -65,6 +72,7 @@ public class Server extends NodeWithHandlers implements Listener {
 							boolean fromServer = true;
 							if (action.getTime() == null) {
 								action.setTime(time.incrementAndGet());
+								action.setParticipant(participants.get(origin));
 								fromServer = false;
 							}
 							else {
@@ -74,8 +82,13 @@ public class Server extends NodeWithHandlers implements Listener {
 							}
 							
 							if (!fromServer && action instanceof ParticipantJoinedAction) {
+								ParticipantJoinedAction joinAction = (ParticipantJoinedAction) action;
+								if (joinAction.getPosition() == null) {
+									joinAction.setPosition(Position.randomPosition(GameState.WIDTH, GameState.HEIGHT));
+								}
+								
 								log.debug("{} - Added client: {}", getLocalAddress(), origin);
-								participants.put(origin, action.getParticipant().getName());
+								participants.put(origin, joinAction.getName());
 							}
 							
 							gameStates.onAction(action);
@@ -90,9 +103,9 @@ public class Server extends NodeWithHandlers implements Listener {
 	}
 
 	@Override
-	public void onUpdate(GameState state) {
+	public void onGameState(GameState state) {
 		Set<Address> clients = participants.keySet();
-		log.info("{} - Sending state: {} to clients: {}", getLocalAddress(), state, Joiner.on(", ").join(clients));
+		log.debug("{} - Sending state: {} to clients: {}", getLocalAddress(), state, Joiner.on(", ").join(clients));
 		multicast(state, clients);
 	}
 

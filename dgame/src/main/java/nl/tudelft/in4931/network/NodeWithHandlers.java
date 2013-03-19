@@ -42,7 +42,6 @@ public class NodeWithHandlers extends Node {
 	}
 	
 	protected void multicast(final Message message, final Collection<Address> addressees) {
-		long start = System.currentTimeMillis();
 		List<Future<?>> futures = Lists.newArrayList();
 		for (Address address : addressees) {
 			futures.add(send(message, address));
@@ -52,10 +51,6 @@ public class NodeWithHandlers extends Node {
 			Future<?> future = futures.get(0);
 			if (future.isCancelled() || future.isDone()) {
 				futures.remove(0);
-			}
-			
-			if (start + 5000 < System.currentTimeMillis()) {
-				log.warn("This is taking quite long...");
 			}
 		}
 	}
