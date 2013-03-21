@@ -22,7 +22,7 @@
 					</descriptorRefs>
 					<archive>
 						<manifest>
-							<mainClass>nl.tudelft.in4931.Main</mainClass>
+							<mainClass>nl.tudelft.in4931.dvgs.Main</mainClass>
 						</manifest>
 					</archive>
 				</configuration>

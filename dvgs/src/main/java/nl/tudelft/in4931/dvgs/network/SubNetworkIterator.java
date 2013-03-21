@@ -62,17 +62,11 @@ public class SubNetworkIterator implements Iterator<Address> {
 			
 			Address address = new Address(hostAddress, currentPort);
 	
-			if (currentByte == (byte) 255 && currentPort == PORTS.upperEndpoint()) {
+			if (currentByte == (byte) 255) {
 				exhausted = true;
 			}
 			else {
-				if (currentPort == PORTS.upperEndpoint()) {
-					currentPort = PORTS.lowerEndpoint();
-					currentByte++;
-				}
-				else {
-					currentPort++;
-				}
+				currentByte++;
 			}
 			
 			return address;

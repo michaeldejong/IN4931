@@ -79,7 +79,7 @@ public class Topology implements Message {
 				TopologyParticipant participant = nodes.get(key);
 				
 				if (participant == null) {
-					boolean joined = !nodes.containsKey(key);
+					boolean joined = nodes.get(key) == null;
 					nodes.put(key, value);
 					if (joined) {
 						notifyListenersOfJoin(value.getAddress(), value.getRole());
