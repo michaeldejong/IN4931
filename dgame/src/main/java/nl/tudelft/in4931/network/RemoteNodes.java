@@ -30,19 +30,21 @@ class RemoteNodes {
 	private static final Map<Address, IRemoteObject> cache = Maps.newConcurrentMap();
 	
 	public RemoteNodes() throws IOException {
-		RMISocketFactory.setSocketFactory( new RMISocketFactory() {
-			public Socket createSocket(String host, int port) throws IOException {
-				Socket socket = new Socket();
-				socket.setSoTimeout( 250 );
-				socket.setSoLinger( false, 0 );
-				socket.connect( new InetSocketAddress( host, port ), 250 );
-				return socket;
-			}
-
-			public ServerSocket createServerSocket(int port) throws IOException {
-				return new ServerSocket(port);
-			}
-		});
+		if (RMISocketFactory.getSocketFactory() == null) {
+			RMISocketFactory.setSocketFactory(new RMISocketFactory() {
+				public Socket createSocket(String host, int port) throws IOException {
+					Socket socket = new Socket();
+					socket.setSoTimeout(250);
+					socket.setSoLinger(false, 0);
+					socket.connect(new InetSocketAddress(host, port), 250);
+					return socket;
+				}
+	
+				public ServerSocket createServerSocket(int port) throws IOException {
+					return new ServerSocket(port);
+				}
+			});
+		}
 	}
 	
 	public IRemoteObject createProxy(Address address, boolean allowCached) throws RemoteException {
