@@ -41,6 +41,8 @@ public class ResourceManager extends TopologyAwareNode {
 		};
 		
 		registerMessageHandlers();
+		
+		log.info("{} - Started resource manager...", getLocalAddress());
 	}
 
 	private void registerMessageHandlers() {

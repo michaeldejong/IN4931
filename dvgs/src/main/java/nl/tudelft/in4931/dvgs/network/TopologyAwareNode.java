@@ -21,7 +21,7 @@ import com.google.common.collect.Maps;
 
 
 public class TopologyAwareNode extends Node {
-	
+
 	private static final Logger log = LoggerFactory.getLogger(TopologyAwareNode.class);
 	
 	private final ScheduledThreadPoolExecutor poller = new ScheduledThreadPoolExecutor(5);
@@ -78,30 +78,7 @@ public class TopologyAwareNode extends Node {
 				continue;
 			}
 			
-			poller.submit(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						boolean canConnect = canConnect(address);
-						boolean wasAlreadyKnown;
-						synchronized (topology) {
-							wasAlreadyKnown = topology.knowsRoleOfNode(address);
-						}
-						
-						if (!canConnect && wasAlreadyKnown) {
-							log.warn("{} - Detected disconnected node: {}", getLocalAddress(), address);
-							onDisconnect(address);
-						}
-						else if (canConnect && !wasAlreadyKnown) {
-							log.debug("{} - Detected joined node: {}", getLocalAddress(), address);
-							onJoined(address);
-						}
-					}
-					catch (Throwable e) {
-						log.error(e.getMessage(), e);
-					}
-				}
-			});
+			poller.submit(new Poller(address));
 		}
 	}
 
@@ -384,6 +361,37 @@ public class TopologyAwareNode extends Node {
 				Thread.sleep(50);
 			} catch (InterruptedException e) {
 				log.warn(e.getMessage(), e);
+			}
+		}
+	}
+	
+	private class Poller implements Runnable {
+		private final Address address;
+
+		private Poller(Address address) {
+			this.address = address;
+		}
+
+		@Override
+		public void run() {
+			try {
+				boolean canConnect = canConnect(address);
+				boolean wasAlreadyKnown;
+				synchronized (topology) {
+					wasAlreadyKnown = topology.knowsRoleOfNode(address);
+				}
+				
+				if (!canConnect && wasAlreadyKnown) {
+					log.warn("{} - Detected disconnected node: {}", getLocalAddress(), address);
+					onDisconnect(address);
+				}
+				else if (canConnect && !wasAlreadyKnown) {
+					log.debug("{} - Detected joined node: {}", getLocalAddress(), address);
+					onJoined(address);
+				}
+			}
+			catch (Throwable e) {
+				log.error(e.getMessage(), e);
 			}
 		}
 	}

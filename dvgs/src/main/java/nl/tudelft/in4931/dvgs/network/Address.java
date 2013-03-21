@@ -82,7 +82,7 @@ public class Address implements Serializable, Comparable<Address> {
 	}
 
 	private byte[] getChunks(String address) {
-		String[] chunks = address.split(".");
+		String[] chunks = address.split("\\.");
 		byte[] result = new byte[chunks.length];
 		for (int i = 0; i < chunks.length; i++) {
 			result[i] = (byte) Integer.parseInt(chunks[i]);

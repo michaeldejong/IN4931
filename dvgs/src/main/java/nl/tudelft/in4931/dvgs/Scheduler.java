@@ -29,7 +29,10 @@ public class Scheduler extends TopologyAwareNode implements TopologyListener {
 	
 	public Scheduler(InetAddress address) throws IOException {
 		super(address, Role.SCHEDULER);
+		
 		registerMessageHandlers();
+		
+		log.info("{} - Started scheduler...", getLocalAddress());
 	}
 	
 	private void registerMessageHandlers() {
