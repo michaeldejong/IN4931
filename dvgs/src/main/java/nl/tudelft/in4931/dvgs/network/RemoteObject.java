@@ -37,6 +37,9 @@ public class RemoteObject extends UnicastRemoteObject implements IRemoteObject {
 	@Override
 	public void onMessage(Message message, Address from) throws RemoteException {
 		try {
+			if (!(message instanceof Topology) && !(message instanceof TopologyEvent)) {
+				log.debug("{} - Received message: {}", node.getLocalAddress(), message);
+			}
 			node.onMessage(message, from);
 		}
 		catch (Throwable e) {

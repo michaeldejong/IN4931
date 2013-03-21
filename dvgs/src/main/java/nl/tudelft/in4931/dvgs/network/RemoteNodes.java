@@ -25,21 +25,21 @@ class RemoteNodes {
 	private static final Map<Address, IRemoteObject> cache = Maps.newConcurrentMap();
 	
 	public IRemoteObject createProxy(Address address, boolean allowCached) throws RemoteException {
-		if (allowCached) {
-			IRemoteObject cachedRemote = cache.get(address);
-			if (cachedRemote != null) {
-				return cachedRemote;
-			}
-		}
+//		if (allowCached) {
+//			IRemoteObject cachedRemote = cache.get(address);
+//			if (cachedRemote != null) {
+//				return cachedRemote;
+//			}
+//		}
 			
 		try {
 			log.trace("Doing lookup of proxy object for remote: {}", address);
 			String rmiUrl = "rmi://" + address.getHostAddress() + ":" + address.getPort() + "/relay";
 			IRemoteObject lookup = (IRemoteObject) Naming.lookup(rmiUrl);
 			
-			if (allowCached) {
-				cache.put(address, lookup);
-			}
+//			if (allowCached) {
+//				cache.put(address, lookup);
+//			}
 			
 			return lookup;
 		} 

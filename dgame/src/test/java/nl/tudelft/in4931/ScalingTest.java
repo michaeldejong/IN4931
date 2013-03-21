@@ -40,7 +40,7 @@ public class ScalingTest {
 		Set<Address> serverAddresses = Sets.newHashSet();
 		List<Server> servers = Lists.newArrayList();
 		for (int i = 0; i < SERVERS; i++) {
-			Server server = new Server(InetAddress.getLocalHost());
+			Server server = new Server(InetAddress.getByName("127.0.0.1"));
 			serverAddresses.add(server.getLocalAddress());
 			servers.add(server);
 		}
@@ -54,7 +54,7 @@ public class ScalingTest {
 		
 		List<Client> clients = Lists.newArrayList();
 		for (int i = 0; i < CLIENTS; i++) {
-			Client client = new Client(InetAddress.getLocalHost(), Type.PLAYER, "Client #" + i);
+			Client client = new Client(InetAddress.getByName("127.0.0.1"), Type.PLAYER, "Client #" + i);
 			client.setServer(servers.get(i%SERVERS).getLocalAddress());
 			clients.add(client);
 		}

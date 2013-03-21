@@ -25,7 +25,7 @@ public abstract class Node {
 	 * @throws UnknownHostException	In case of network issues.
 	 */
 	public Node(InetAddress address) throws IOException {
-		if (!address.equals(InetAddress.getLocalHost()) && System.getSecurityManager() == null) {
+		if (!address.getHostAddress().equals("127.0.0.1") && System.getSecurityManager() == null) {
 			log.info("Setting RMI SecurityManager...");
 			System.setSecurityManager(new RMISecurityManager());
 		}

@@ -14,7 +14,7 @@ import com.google.common.collect.Lists;
 public class LocalTest {
 	
 	public static ClusterBuilder defineCluster() throws IOException {
-		return new ClusterBuilder(InetAddress.getLocalHost());
+		return new ClusterBuilder(InetAddress.getByName("127.0.0.1"));
 	}
 
 	private ClusterBuilder clusterDefinition;
@@ -45,7 +45,7 @@ public class LocalTest {
 		
 		private static final Logger log = LoggerFactory.getLogger(ClusterBuilder.class);
 		
-		private final List<Integer> capacities = Lists.newArrayList(100);
+		private final List<Integer> capacities = Lists.newArrayList();
 		private final InetAddress host;
 
 		private Scheduler[] schedulers = new Scheduler[1];

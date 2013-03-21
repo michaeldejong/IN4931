@@ -19,7 +19,7 @@ public class SubNetworkIterator implements Iterator<Address> {
 	
 	public SubNetworkIterator(InetAddress localAddress) throws UnknownHostException {
 		this.local = localAddress;
-		this.localOnly = localAddress.equals(InetAddress.getLocalHost());
+		this.localOnly = localAddress.getHostAddress().equals("127.0.0.1");
 		this.currentPort = PORTS.lowerEndpoint();
 		this.exhausted = false;
 		this.currentByte = localOnly ? getLastByte(localAddress) : 0;

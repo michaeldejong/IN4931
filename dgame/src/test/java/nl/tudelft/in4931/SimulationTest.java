@@ -38,7 +38,7 @@ public class SimulationTest {
 	
 	@Before
 	public void setUp() throws IOException, InterruptedException {
-		InetAddress local = InetAddress.getLocalHost();
+		InetAddress local = InetAddress.getByName("127.0.0.1");
 		
 		final Set<Address> serverAddresses = Sets.newHashSet();
 		servers = Lists.newArrayList();
@@ -75,7 +75,7 @@ public class SimulationTest {
 					public void run() {
 						try {
 							Address server = servers.get(dragons.size()%SERVERS).getLocalAddress();
-							DragonClient client = new DragonClient(InetAddress.getLocalHost(), "Dragon #" + dragons.size(), server);
+							DragonClient client = new DragonClient(InetAddress.getByName("127.0.0.1"), "Dragon #" + dragons.size(), server);
 							client.setInitialPosition(new Position(x, y));
 							dragons.add(client);
 							client.start();

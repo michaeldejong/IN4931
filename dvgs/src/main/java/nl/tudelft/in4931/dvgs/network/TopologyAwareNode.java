@@ -26,7 +26,7 @@ public class TopologyAwareNode extends Node {
 	
 	private final ScheduledThreadPoolExecutor poller = new ScheduledThreadPoolExecutor(5);
 	private final Map<Class<?>, Handler<?>> handlers = Maps.newHashMap();
-	private final ScheduledThreadPoolExecutor messenger;
+	private final ScheduledThreadPoolExecutor messenger = new ScheduledThreadPoolExecutor(2);
 	private final RemoteNodes remoteNodes;
 	private final Topology topology;
 
@@ -35,7 +35,6 @@ public class TopologyAwareNode extends Node {
 	public TopologyAwareNode(final InetAddress address, Role role) throws IOException {
 		super(address);
 
-		this.messenger = new ScheduledThreadPoolExecutor(1);
 		this.topology = new Topology(getLocalAddress(), role);
 		this.remoteNodes = new RemoteNodes();
 
@@ -61,7 +60,7 @@ public class TopologyAwareNode extends Node {
 	
 	public void die() {
 		if (alive) {
-			log.info("{} - Terminated", getLocalAddress());
+			log.debug("{} - Terminated", getLocalAddress());
 			alive = false;
 			poller.shutdownNow();
 			messenger.shutdownNow();
@@ -135,13 +134,11 @@ public class TopologyAwareNode extends Node {
 			@Override
 			public void run() {
 				boolean replicated = false;
-				Iterator<Address> iterator = getSchedulers().iterator();
-				while (!iterator.next().equals(getLocalAddress())) {
-					// Forward until iterator pointed to local host.
-				}
+				List<Address> schedulers = getSchedulers();
+				int index = schedulers.indexOf(getLocalAddress()) + 1;
 				
-				while (!replicated && iterator.hasNext()) {
-					Address scheduler = iterator.next();
+				while (!replicated && index < schedulers.size()) {
+					Address scheduler = schedulers.get(index);
 					if (sendAndWait(message, scheduler)) {
 						replicated = true;
 					}
@@ -252,7 +249,7 @@ public class TopologyAwareNode extends Node {
 
 	protected boolean sendAndWait(Message message, Address address) {
 		try {
-			if (!(message instanceof Topology)) {
+			if (!(message instanceof Topology) && !(message instanceof TopologyEvent)) {
 				log.debug("{} - Sending: {} to: {}", getLocalAddress(), message, address);
 			}
 			IRemoteObject proxy = remoteNodes.createProxy(address, true);
@@ -270,9 +267,7 @@ public class TopologyAwareNode extends Node {
 		if (isScheduler() && !(message instanceof Topology)) {
 			replicateMessageToBackup(message, from);
 		}
-		else {
-			handleMessage(message, from);
-		}
+		handleMessage(message, from);
 	}
 
 	private <M extends Message> void replicateMessageToBackup(M message, Address from) {

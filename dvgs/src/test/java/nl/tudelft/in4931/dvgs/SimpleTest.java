@@ -19,7 +19,7 @@ public class SimpleTest {
 
 	@Test
 	public void testSimpleNetworkConnection() throws IOException, InterruptedException {
-		InetAddress localHost = InetAddress.getLocalHost();
+		InetAddress localHost = InetAddress.getByName("127.0.0.1");
 		Scheduler scheduler = new Scheduler(localHost);
 		ResourceManager resourceManager = new ResourceManager(localHost, 1);
 		
@@ -31,7 +31,7 @@ public class SimpleTest {
 
 	@Test
 	public void testSchedulersAgePrecedence() throws IOException, InterruptedException {
-		InetAddress localHost = InetAddress.getLocalHost();
+		InetAddress localHost = InetAddress.getByName("127.0.0.1");
 		Scheduler s1 = new Scheduler(localHost);
 		Scheduler s2 = new Scheduler(localHost);
 		Scheduler s3 = new Scheduler(localHost);
@@ -57,7 +57,7 @@ public class SimpleTest {
 
 	@Test(timeout = 30000)
 	public void testSchedulersAgePrecedenceWithSlowStart() throws IOException, InterruptedException {
-		InetAddress localHost = InetAddress.getLocalHost();
+		InetAddress localHost = InetAddress.getByName("127.0.0.1");
 		Scheduler s1 = new Scheduler(localHost);
 		Thread.sleep(NODE_BOOT_TIME);
 
@@ -88,7 +88,7 @@ public class SimpleTest {
 
 	@Test
 	public void testMasterCheck() throws IOException, InterruptedException {
-		InetAddress localHost = InetAddress.getLocalHost();
+		InetAddress localHost = InetAddress.getByName("127.0.0.1");
 		Scheduler s1 = new Scheduler(localHost);
 		Scheduler s2 = new Scheduler(localHost);
 		

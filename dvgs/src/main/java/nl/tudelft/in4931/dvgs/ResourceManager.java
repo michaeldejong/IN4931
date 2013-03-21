@@ -49,10 +49,13 @@ public class ResourceManager extends TopologyAwareNode {
 		on(Jobs.class, new Handler<Jobs>() {
 			@Override
 			public void onMessage(Jobs jobs, Address origin) {
-				synchronized (lock) {
-					jobQueue.addAll(jobs.getJobs());
+				if (!jobs.getJobs().isEmpty()) {
+					synchronized (lock) {
+						jobQueue.addAll(jobs.getJobs());
+					}
+					toScheduler(new JobState(jobs, State.ACCEPTED, calculateLoad(), getLocalAddress()), true);
+					drainQueuedJobsToCluster();
 				}
-				toScheduler(new JobState(jobs, State.ACCEPTED, calculateLoad(), getLocalAddress()), true);
 			}
 		});
 	}
@@ -83,13 +86,20 @@ public class ResourceManager extends TopologyAwareNode {
 			}
 		}
 		
-		toScheduler(new JobState(Jobs.of(accepted), State.ACCEPTED, calculateLoad(), getLocalAddress()), fireAndForget);
-		toScheduler(new JobState(Jobs.of(reschedule), State.RESCHEDULE, calculateLoad(), getLocalAddress()), fireAndForget);
+		if (!accepted.isEmpty()) {
+			toScheduler(new JobState(Jobs.of(accepted), State.ACCEPTED, calculateLoad(), getLocalAddress()), fireAndForget);
+		}
+		if (!reschedule.isEmpty()) {
+			toScheduler(new JobState(Jobs.of(reschedule), State.RESCHEDULE, calculateLoad(), getLocalAddress()), fireAndForget);
+		}
 	}
 	
 	private double calculateLoad() {
 		double queuedLoad;
 		synchronized (lock) {
+			if (cluster.getMaxCapacity() == 0) {
+				return Double.MAX_VALUE;
+			}
 			queuedLoad = ((double) jobQueue.size()) / ((double) cluster.getMaxCapacity());
 		}
 		double currentLoad = cluster.getUtilization();

@@ -83,6 +83,9 @@ public class Scheduler extends TopologyAwareNode implements TopologyListener {
 			boolean success = false;
 			while (!success && redirectTo != null) {
 				Jobs jobs = Jobs.of(clusterState.getPendingJobs());
+				if (jobs.getJobs().isEmpty()) {
+					return;
+				}
 				
 				success = sendAndWait(jobs, redirectTo);
 				if (!success) {

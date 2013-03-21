@@ -19,7 +19,7 @@ public class SimpleConnectionTest {
 	
 	@Before
 	public void setUp() throws IOException, InterruptedException {
-		InetAddress local = InetAddress.getLocalHost();
+		InetAddress local = InetAddress.getByName("127.0.0.1");
 		server1 = new Server(local);
 		server2 = new Server(local);
 		client1 = new Client(local, Type.PLAYER, "Client #1");

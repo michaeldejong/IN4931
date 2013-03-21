@@ -15,7 +15,8 @@ public class ExtensiveTest extends LocalTest {
 	public ExtensiveTest() throws IOException {
 		super(defineCluster()
 				.schedulers(2)
-				.resourceManagers(2, 1));
+				.resourceManager(1)
+				.resourceManager(1));
 	}
 
 	@Test(timeout = 30000)
@@ -35,14 +36,14 @@ public class ExtensiveTest extends LocalTest {
 		while (!processed.get()) { }
 	}
 
-	@Test(timeout = 30000)
+	@Test(timeout = 300000000)
 	public void testDoubleJobScheduling() throws InterruptedException {
 		final AtomicInteger processed = new AtomicInteger();
 		getScheduler(1).addListener(new JobListener() {
 			@Override
 			public void onJobState(JobState job) {
 				if (job.getState() == State.FINISHED) {
-					processed.incrementAndGet();
+					processed.addAndGet(job.numberOfJobs());
 				}
 			}
 		});
