@@ -58,6 +58,10 @@ public class Board extends JFrame {
 			
 			@Override
 			public void mouseClicked(MouseEvent e) {
+				if (listener == null) {
+					return;
+				}
+				
 				int x = (int) e.getX() / 20;
 				int y = (int) e.getY() / 20;
 				listener.spawnDragon(x, y);

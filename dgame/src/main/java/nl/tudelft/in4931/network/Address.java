@@ -11,6 +11,11 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
  * @author michael
  */
 public class Address implements Serializable, Comparable<Address> {
+	
+	public static Address parse(String address) {
+		String[] split = address.split(":");
+		return new Address(split[0], Integer.parseInt(split[1]));
+	}
 
 	private static final long serialVersionUID = -6740148403370245172L;
 	
