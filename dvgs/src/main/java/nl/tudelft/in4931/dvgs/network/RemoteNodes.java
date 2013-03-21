@@ -34,9 +34,9 @@ class RemoteNodes {
 			RMISocketFactory.setSocketFactory(new RMISocketFactory() {
 				public Socket createSocket(String host, int port) throws IOException {
 					Socket socket = new Socket();
-					socket.setSoTimeout(250);
+					socket.setSoTimeout(2500);
 					socket.setSoLinger(false, 0);
-					socket.connect(new InetSocketAddress(host, port), 250);
+					socket.connect(new InetSocketAddress(host, port), 2500);
 					return socket;
 				}
 	

@@ -10,19 +10,15 @@ import nl.tudelft.in4931.dvgs.network.JobState;
 import nl.tudelft.in4931.dvgs.network.JobState.State;
 
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
 public class LoadTest extends LocalTest {
 	
-	private static final Logger log = LoggerFactory.getLogger(LoadTest.class);
-	
 	public LoadTest() throws IOException {
 		super(defineCluster()
-				.schedulers(1)
-				.resourceManagers(4, 100));
+				.schedulers(3)
+				.resourceManagers(4, 1000));
 	}
 
 	@Test
@@ -40,7 +36,7 @@ public class LoadTest extends LocalTest {
 		Thread.sleep(100);
 		
 		int x = 0;
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 40; i++) {
 			List<Job> jobs = Lists.newArrayList();
 			for (int j = 0; j < 500; j++) {
 				jobs.add(new Job(x++, 5000));
@@ -49,11 +45,10 @@ public class LoadTest extends LocalTest {
 			getResourceManager(i%4).offerJob(Jobs.of(jobs), false);
 		}
 		
+		Thread.sleep(5000);
 		getResourceManager(0).die();
-		getResourceManager(1).die();
-		getResourceManager(2).die();
 		
-		while (counter.get() != 2000) {
+		while (counter.get() != 20000) {
 			Thread.sleep(100);
 		}
 	}

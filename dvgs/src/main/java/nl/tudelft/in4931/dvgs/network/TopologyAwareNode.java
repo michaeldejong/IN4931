@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import nl.tudelft.in4931.dvgs.network.TopologyEvent.Type;
@@ -25,8 +27,8 @@ public class TopologyAwareNode extends Node {
 	private static final Logger log = LoggerFactory.getLogger(TopologyAwareNode.class);
 	
 	private final ScheduledThreadPoolExecutor poller = new ScheduledThreadPoolExecutor(5);
-	private final Map<Class<?>, Handler<?>> handlers = Maps.newHashMap();
 	private final ScheduledThreadPoolExecutor messenger = new ScheduledThreadPoolExecutor(2);
+	private final Map<Class<?>, Handler<?>> handlers = Maps.newHashMap();
 	private final RemoteNodes remoteNodes;
 	private final Topology topology;
 
@@ -38,6 +40,13 @@ public class TopologyAwareNode extends Node {
 		this.topology = new Topology(getLocalAddress(), role);
 		this.remoteNodes = new RemoteNodes();
 
+		messenger.setRejectedExecutionHandler(new RejectedExecutionHandler() {
+			@Override
+			public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+				log.warn("{} - Failed to schedule runnable...", getLocalAddress());
+			}
+		});
+		
 		registerMessageHandlers();
 		
 		poller.scheduleWithFixedDelay(new Runnable() {
