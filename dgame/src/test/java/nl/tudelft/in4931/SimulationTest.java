@@ -3,11 +3,13 @@ package nl.tudelft.in4931;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import nl.tudelft.in4931.Client.Listener;
 import nl.tudelft.in4931.models.GameState;
+import nl.tudelft.in4931.models.Participant;
 import nl.tudelft.in4931.models.Position;
 import nl.tudelft.in4931.network.Address;
 import nl.tudelft.in4931.ui.Board;
@@ -27,7 +29,7 @@ public class SimulationTest {
 	private static final Logger log = LoggerFactory.getLogger(SimulationTest.class);
 	
 	private static final int PLAYERS = 20;
-	private static final int DRAGONS = 2;
+	private static final int DRAGONS = 1;
 	private static final int SERVERS = 3;
 
 	private List<Server> servers;
@@ -35,10 +37,14 @@ public class SimulationTest {
 	private List<PlayerClient> clients;
 
 	private Board board;
+
+	private Set<String> killedDragons;
 	
 	@Before
 	public void setUp() throws IOException, InterruptedException {
 		InetAddress local = InetAddress.getByName("127.0.0.1");
+
+		killedDragons = Sets.newHashSet();
 		
 		final Set<Address> serverAddresses = Sets.newHashSet();
 		servers = Lists.newArrayList();
@@ -77,6 +83,7 @@ public class SimulationTest {
 							Address server = servers.get(dragons.size()%SERVERS).getLocalAddress();
 							DragonClient client = new DragonClient(InetAddress.getByName("127.0.0.1"), "Dragon #" + dragons.size(), server);
 							client.setInitialPosition(new Position(x, y));
+							awaitDragonDeath(client, killedDragons);
 							dragons.add(client);
 							client.start();
 						}
@@ -109,8 +116,6 @@ public class SimulationTest {
 	
 	@Test
 	public void testThatDragonWillKillPlayer() throws InterruptedException {
-		final Set<String> killedDragons = Sets.newHashSet();
-		
 		for (DragonClient dragon : dragons) {
 			dragon.start();
 			awaitDragonDeath(dragon, killedDragons);
@@ -142,13 +147,13 @@ public class SimulationTest {
 						return;
 					}
 					
-					int myHp = state.getByName(client.getName()).getKey().getHp();
-					if (myHp == 0) {
+					Entry<Participant, Position> byName = state.getByName(client.getName());
+					if (byName == null || byName.getKey().getHp() == 0) {
 						log.info("{} - Dragon died!", client.getLocalAddress());
 						killedDragons.add(client.getName());
 					}
 					else {
-						log.info("{} - Dragon HP is: {}", client.getLocalAddress(), myHp);
+						log.info("{} - Dragon HP is: {}", client.getLocalAddress(), byName.getKey().getHp());
 					}
 				}
 			}

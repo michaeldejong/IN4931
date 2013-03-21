@@ -43,7 +43,12 @@ public class PlayerClient extends Client implements Runnable {
 
 	@Override
 	public void run() {
-		if (getGameState().getByName(getName()).getKey().getHp() == 0) {
+		Entry<Participant, Position> byName = getGameState().getByName(getName());
+		if (byName == null) {
+			return;
+		}
+		
+		if (byName.getKey().getHp() == 0) {
 			future.cancel(false);
 			return;
 		}
