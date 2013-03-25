@@ -6,6 +6,7 @@ import java.awt.event.MouseListener;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -26,9 +27,10 @@ public class Board extends JFrame {
 	
 	private final Map<String, Dot> dots = Maps.newConcurrentMap();
 	private final JPanel back;
+	private final AtomicLong timer = new AtomicLong();
+	private GameState gameState = null;
 	
 	public Board(final BoardListener listener) {
-		setTitle("GAME STATE");
 		setLocation(50, 50);
 		setSize(500, 522);
 		setVisible(true);
@@ -71,6 +73,11 @@ public class Board extends JFrame {
 	
 	public void update(final GameState state) {
 		synchronized (lock) {
+			if (!shouldDisplay(state)) {
+				return;
+			}
+			
+			setTitle("T: " + state.getTime() + " P: " + state.getParticipants().size());
 			Set<String> alive = Sets.newHashSet();
 			for (Entry<Participant, Position> entry : state.getParticipants().entrySet()) {
 				String name = entry.getKey().getName();
@@ -96,7 +103,22 @@ public class Board extends JFrame {
 			}
 			
 			back.repaint();
+			
+			gameState = state;
+			setTimeout();
 		}
+	}
+	
+	public void setTimeout() {
+		timer.set(System.currentTimeMillis() + 1000);
+	}
+	
+	public boolean shouldDisplay(GameState state) {
+		return gameState == null || timerExpired();
+	}
+	
+	public boolean timerExpired() {
+		return timer.get() >= System.currentTimeMillis();
 	}
 	
 	public interface BoardListener {

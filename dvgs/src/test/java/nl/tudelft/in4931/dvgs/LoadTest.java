@@ -1,6 +1,7 @@
 package nl.tudelft.in4931.dvgs;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -17,12 +18,12 @@ public class LoadTest extends LocalTest {
 	
 	public LoadTest() throws IOException {
 		super(defineCluster()
-				.schedulers(3)
-				.resourceManagers(4, 1000));
+				.schedulers(5)
+				.resourceManagers(1, 10));
 	}
 
 	@Test
-	public void performLoadTest() throws InterruptedException {
+	public void performLoadTest() throws InterruptedException, IOException {
 		final AtomicInteger counter = new AtomicInteger();
 		getScheduler(0).addListener(new JobListener() {
 			@Override
@@ -36,19 +37,29 @@ public class LoadTest extends LocalTest {
 		Thread.sleep(100);
 		
 		int x = 0;
-		for (int i = 0; i < 40; i++) {
+		for (int i = 0; i < 10; i++) {
 			List<Job> jobs = Lists.newArrayList();
 			for (int j = 0; j < 500; j++) {
-				jobs.add(new Job(x++, 5000));
+				jobs.add(new Job(x++, 10000));
 			}
 			
-			getResourceManager(i%4).offerJob(Jobs.of(jobs), false);
+			getResourceManager(0).offerJob(Jobs.of(jobs), false);
 		}
 		
 		Thread.sleep(5000);
-		getResourceManager(0).die();
 		
-		while (counter.get() != 20000) {
+		ResourceManager resourceManager = new ResourceManager(InetAddress.getByName("127.0.0.1"), 1000);
+
+		for (int i = 0; i < 30; i++) {
+			List<Job> jobs = Lists.newArrayList();
+			for (int j = 0; j < 500; j++) {
+				jobs.add(new Job(x++, 10000));
+			}
+			
+			getResourceManager(0).offerJob(Jobs.of(jobs), false);
+		}
+		
+		while (counter.get() != 10000) {
 			Thread.sleep(100);
 		}
 	}

@@ -60,7 +60,7 @@ public class GameStates {
 				return;
 			}
 			
-			GameState previousState = states.get(states.size() - 1);
+			GameState previousState = getCurrentState();
 			if (time >= previousState.getTime()) {
 				GameState newState = GameState.from(previousState, actionLog.iterateOnwardsFrom(previousState.getTime() + 1));
 				states.add(newState);
@@ -74,6 +74,12 @@ public class GameStates {
 			for (Listener listener : listeners) {
 				listener.onGameState(state);
 			}
+		}
+	}
+	
+	public GameState getCurrentState() {
+		synchronized (lock) {
+			return states.get(states.size() - 1);
 		}
 	}
 

@@ -5,6 +5,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import nl.tudelft.in4931.ParticipantDisconnected;
+import nl.tudelft.in4931.ServerDisconnected;
 import nl.tudelft.in4931.network.Message;
 
 import com.google.common.collect.Maps;
@@ -93,6 +95,16 @@ public class GameState implements Message {
 				participants.put(self.getKey(), newPosition);
 			}
 		}
+		else if (action instanceof ServerDisconnected) {
+			ServerDisconnected disconnected = (ServerDisconnected) action;
+			for (String client : disconnected.getClientNames()) {
+				removeByName(client);
+			}
+		}
+		else if (action instanceof ParticipantDisconnected) {
+			ParticipantDisconnected disconnected = (ParticipantDisconnected) action;
+			removeByName(disconnected.getParticipantName());
+		}
 	}
 
 	private GameState copy() {
@@ -114,6 +126,19 @@ public class GameState implements Message {
 			}
 		}
 		return null;
+	}
+	
+	public void removeByName(String name) {
+		Participant match = null;
+		for (Entry<Participant, Position> entry : participants.entrySet()) {
+			if (entry.getKey().getName().equals(name)) {
+				match = entry.getKey();
+			}
+		}
+		
+		if (match != null) {
+			participants.remove(match);
+		}
 	}
 
 	public Entry<Participant, Position> getByPosition(Position position) {

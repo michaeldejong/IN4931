@@ -30,6 +30,12 @@ public class DragonClient extends Client implements Runnable {
 		
 		setServer(server);
 	}
+	
+	@Override
+	public void die() {
+		executor.shutdownNow();
+		super.die();
+	}
 
 	public void start() {
 		join();

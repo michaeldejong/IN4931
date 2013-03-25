@@ -2,6 +2,7 @@ package nl.tudelft.in4931;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -21,7 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 
 public class Server extends NodeWithHandlers implements Listener {
@@ -31,6 +34,7 @@ public class Server extends NodeWithHandlers implements Listener {
 	private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
 	private final Set<Address> servers = Sets.newHashSet();
+	private final Multimap<Address, String> clientsPerServer = HashMultimap.create();
 	private final Map<Address, String> participants = Maps.newHashMap();
 	private final AtomicLong time = new AtomicLong(0);
 	private final GameStates gameStates;
@@ -43,7 +47,7 @@ public class Server extends NodeWithHandlers implements Listener {
 		
 		gameStates = new GameStates();
 		gameStates.addListener(this);
-		
+
 		registerMessageHandlers();
 	}
 	
@@ -58,6 +62,12 @@ public class Server extends NodeWithHandlers implements Listener {
 			servers.clear();
 			servers.addAll(addresses);
 		}
+	}
+	
+	@Override
+	public void die() {
+		executor.shutdownNow();
+		super.die();
 	}
 	
 	private void registerMessageHandlers() {
@@ -80,7 +90,10 @@ public class Server extends NodeWithHandlers implements Listener {
 									time.set(Math.max(time.get(), action.getTime() + 1));
 								}
 							}
-							
+							if (fromServer && action instanceof ParticipantJoinedAction) {
+								ParticipantJoinedAction joinAction = (ParticipantJoinedAction) action;
+								clientsPerServer.put(origin, joinAction.getName());
+							}
 							if (!fromServer && action instanceof ParticipantJoinedAction) {
 								ParticipantJoinedAction joinAction = (ParticipantJoinedAction) action;
 								if (joinAction.getPosition() == null) {
@@ -88,12 +101,19 @@ public class Server extends NodeWithHandlers implements Listener {
 								}
 								
 								log.debug("{} - Added client: {}", getLocalAddress(), origin);
+								joinAction.setServer(getLocalAddress());
 								participants.put(origin, joinAction.getName());
+							}
+							else if (fromServer && action instanceof ServerDisconnected) {
+								ServerDisconnected disconnected = (ServerDisconnected) action;
+								Address serverAddress = disconnected.getAddress();
+								servers.remove(serverAddress);
+								log.warn("{} - Server disconnected: {} - Removed from server list.", getLocalAddress(), serverAddress);
 							}
 							
 							gameStates.onAction(action);
 							if (!fromServer) {
-								multicast(action, servers);
+								multicastAndWait(action, servers);
 							}
 						}
 					});
@@ -107,6 +127,25 @@ public class Server extends NodeWithHandlers implements Listener {
 		Set<Address> clients = participants.keySet();
 		log.debug("{} - Sending state: {} to clients: {}", getLocalAddress(), state, Joiner.on(", ").join(clients));
 		multicast(state, clients);
+	}
+
+	@Override
+	protected void onConnectionLost(Address remote) {
+		if (servers.contains(remote)) {
+			servers.remove(remote);
+			
+			Collection<String> clients = clientsPerServer.removeAll(remote);
+			ServerDisconnected message = new ServerDisconnected(time.get(), remote, clients);
+			gameStates.onAction(message);
+			multicastAndWait(message, servers);
+			
+			log.info("{} - Notified other servers of disconnected server.", getLocalAddress());
+		}
+		else {
+			ParticipantDisconnected message = new ParticipantDisconnected(time.get(), remote, participants.get(remote));
+			gameStates.onAction(message);
+			multicastAndWait(message, servers);
+		}
 	}
 
 }

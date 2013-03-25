@@ -3,9 +3,12 @@ package nl.tudelft.in4931.dvgs;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import nl.tudelft.in4931.dvgs.models.ClusterState;
+import nl.tudelft.in4931.dvgs.models.Job;
 import nl.tudelft.in4931.dvgs.models.Jobs;
 import nl.tudelft.in4931.dvgs.network.Address;
 import nl.tudelft.in4931.dvgs.network.Handler;
@@ -20,10 +23,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class Scheduler extends TopologyAwareNode implements TopologyListener {
+public class Scheduler extends TopologyAwareNode implements TopologyListener, Runnable {
 	
 	private static final Logger log = LoggerFactory.getLogger(Scheduler.class);
 
+	private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 	private final AtomicReference<ClusterState> clusterStateReference = new AtomicReference<>(new ClusterState());
 	private final List<JobListener> jobListeners = Lists.newArrayList();
 	
@@ -31,6 +35,7 @@ public class Scheduler extends TopologyAwareNode implements TopologyListener {
 		super(address, Role.SCHEDULER);
 		
 		registerMessageHandlers();
+		executor.scheduleWithFixedDelay(this, 1000, 1000, TimeUnit.MILLISECONDS);
 		
 		log.info("{} - Started scheduler...", getLocalAddress());
 	}
@@ -48,8 +53,6 @@ public class Scheduler extends TopologyAwareNode implements TopologyListener {
 					ClusterState clusterState = clusterStateReference.get();
 					clusterState.update(jobs, state, utilization, resourceManager);
 					toBackup(clusterState, true);
-					
-					drainPendingJobs();
 				}
 				
 				synchronized (jobListeners) {
@@ -71,34 +74,6 @@ public class Scheduler extends TopologyAwareNode implements TopologyListener {
 		
 		addTopologyListener(this);
 	}
-	
-	protected void drainPendingJobs() {
-		if (!isMasterScheduler()) {
-			return;
-		}
-		
-		synchronized (clusterStateReference) {
-			ClusterState clusterState = clusterStateReference.get();
-			Address redirectTo = clusterState.leastUtilizedCluster();
-			boolean success = false;
-			while (!success && redirectTo != null) {
-				Jobs jobs = Jobs.of(clusterState.getPendingJobs());
-				if (jobs.getJobs().isEmpty()) {
-					return;
-				}
-				
-				success = sendAndWait(jobs, redirectTo);
-				if (!success) {
-					clusterState.markClusterDown(redirectTo);
-					toBackup(clusterState, true);
-					redirectTo = clusterState.leastUtilizedCluster();
-				}
-				else {
-					clusterState.clearPendingJobs();
-				}
-			}
-		}
-	}
 
 	public void addListener(JobListener listener) {
 		synchronized (jobListeners) {
@@ -113,9 +88,6 @@ public class Scheduler extends TopologyAwareNode implements TopologyListener {
 				ClusterState clusterState = clusterStateReference.get();
 				clusterState.markClusterDown(address);
 				toBackup(clusterState, true);
-
-				log.info("{} - Draining pending jobs to resource managers...", getLocalAddress());
-				drainPendingJobs();
 			}
 		}
 	}
@@ -126,6 +98,42 @@ public class Scheduler extends TopologyAwareNode implements TopologyListener {
 			synchronized (clusterStateReference) {
 				ClusterState clusterState = clusterStateReference.get();
 				clusterState.onNodeJoin(address);
+			}
+		}
+	}
+
+	@Override
+	public void run() {
+		log.debug("{} - Draining pending jobs to resource managers...", getLocalAddress());
+		
+		synchronized (clusterStateReference) {
+			ClusterState clusterState = clusterStateReference.get();
+			List<Job> pendingJobs = clusterState.getPendingJobs();
+			if (pendingJobs.isEmpty()) {
+				return;
+			}
+			
+			List<Job> jobsToSchedule = Lists.newArrayList();
+			int take = Math.min(10, pendingJobs.size());
+			for (int i = 0; i < take; i++) {
+				jobsToSchedule.add(pendingJobs.remove(0));
+			}
+			
+			Jobs jobs = Jobs.of(jobsToSchedule);
+			
+			boolean success = false;
+			Address redirectTo = clusterState.leastUtilizedCluster();
+			while (!success && redirectTo != null) {
+				success = sendAndWait(jobs, redirectTo);
+				if (!success) {
+					clusterState.markClusterDown(redirectTo);
+					toBackup(clusterState, true);
+					redirectTo = clusterState.leastUtilizedCluster();
+					
+					if (redirectTo == null) {
+						pendingJobs.addAll(0, jobsToSchedule);
+					}
+				}
 			}
 		}
 	}

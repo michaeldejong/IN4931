@@ -250,6 +250,7 @@ public class TopologyAwareNode extends Node {
 	}
 
 	private void onJoined(Address address) {
+		log.info("{} - Detected new node: {}", getLocalAddress(), address);
 		synchronized (topology) {
 			topology.joinNode(address);
 		}

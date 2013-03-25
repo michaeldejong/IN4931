@@ -5,7 +5,6 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 import nl.tudelft.in4931.Client.Listener;
 import nl.tudelft.in4931.models.GameState;
@@ -28,9 +27,9 @@ public class SimulationTest {
 	
 	private static final Logger log = LoggerFactory.getLogger(SimulationTest.class);
 	
-	private static final int PLAYERS = 20;
-	private static final int DRAGONS = 1;
-	private static final int SERVERS = 3;
+	private static final int PLAYERS = 24;
+	private static final int DRAGONS = 2;
+	private static final int SERVERS = 2;
 
 	private List<Server> servers;
 	private List<DragonClient> dragons;
@@ -69,7 +68,7 @@ public class SimulationTest {
 		
 		clients = Lists.newArrayList();
 		for (int i = 0; i < PLAYERS; i++) {
-			Address server = servers.get(i%SERVERS).getLocalAddress();
+			Address server = servers.get((i + 1)%SERVERS).getLocalAddress();
 			clients.add(new PlayerClient(local, "Player #" + i, server));
 		}
 		
@@ -95,14 +94,10 @@ public class SimulationTest {
 			}
 		});
 		
-		final AtomicLong last = new AtomicLong();
 		dragons.get(0).registerListener(new Listener() {
 			@Override
 			public void onGameState(GameState state) {
-				if (last.get() + 100 < System.currentTimeMillis()) {
-					board.update(state);
-					last.set(System.currentTimeMillis());
-				}
+				board.update(state);
 			}
 		});
 		
@@ -124,6 +119,9 @@ public class SimulationTest {
 		for (PlayerClient client : clients) {
 			client.start();
 		}
+		
+		Thread.sleep(2000);
+		servers.get(1).die();
 		
 		while (true) {
 			int killed = 0;

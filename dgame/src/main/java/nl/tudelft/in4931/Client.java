@@ -123,4 +123,9 @@ public class Client extends NodeWithHandlers {
 		void onGameState(GameState state);
 	}
 
+	@Override
+	protected void onConnectionLost(Address remote) {
+		die();
+	}
+
 }

@@ -34,7 +34,7 @@ public class ClusterState implements Message {
 			Address resourceManager = null;
 			
 			for (Entry<Address, Double> entry : clusterUtilizations.entrySet()) {
-				if (entry.getValue() < least) {
+				if (entry.getValue() < least && entry.getValue() < 2.00) {
 					least = entry.getValue();
 					resourceManager = entry.getKey();
 				}
@@ -83,7 +83,10 @@ public class ClusterState implements Message {
 		
 		Set<Job> failedJobs = Sets.newHashSet();
 		synchronized (clusterState) {
-			failedJobs = clusterState.remove(address).keySet();
+			Map<Job, State> removedCluster = clusterState.remove(address);
+			if (removedCluster != null) {
+				failedJobs = removedCluster.keySet();
+			}
 		}
 		
 		synchronized (pendingJobs) {

@@ -41,6 +41,7 @@ public class RemoteObject extends UnicastRemoteObject implements IRemoteObject {
 		}
 		catch (Throwable e) {
 			log.error("Failure while processing message: {} - {}", message, e);
+			throw new RemoteException(e.getMessage(), e);
 		}
 	}
 	

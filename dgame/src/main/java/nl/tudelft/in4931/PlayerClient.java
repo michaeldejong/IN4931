@@ -24,7 +24,7 @@ public class PlayerClient extends Client implements Runnable {
 
 	private static final Logger log = LoggerFactory.getLogger(DragonClient.class);
 	
-	private static final ScheduledThreadPoolExecutor exector = new ScheduledThreadPoolExecutor(10);
+	private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
 	private ScheduledFuture<?> future;
 
@@ -33,11 +33,17 @@ public class PlayerClient extends Client implements Runnable {
 		
 		setServer(server);
 	}
+	
+	@Override
+	public void die() {
+		executor.shutdownNow();
+		super.die();
+	}
 
 	public void start() {
 		join();
-		synchronized (exector) {
-			future = exector.scheduleWithFixedDelay(this, 0, 1000, TimeUnit.MILLISECONDS);
+		synchronized (executor) {
+			future = executor.scheduleWithFixedDelay(this, 0, 1000, TimeUnit.MILLISECONDS);
 		}
 	}
 

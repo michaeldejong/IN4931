@@ -1,6 +1,7 @@
 package nl.tudelft.in4931.models;
 
 import nl.tudelft.in4931.models.Participant.Type;
+import nl.tudelft.in4931.network.Address;
 
 public class ParticipantJoinedAction extends Action {
 
@@ -9,6 +10,7 @@ public class ParticipantJoinedAction extends Action {
 	private final Type type;
 	private final String name;
 	private Position position;
+	private Address server;
 
 	public ParticipantJoinedAction(Long time, Type type, String name) {
 		super(time);
@@ -22,6 +24,14 @@ public class ParticipantJoinedAction extends Action {
 	
 	public Position getPosition() {
 		return position;
+	}
+	
+	public void setServer(Address server) {
+		this.server = server;
+	}
+	
+	public Address getServer() {
+		return server;
 	}
 	
 	public Type getType() {
