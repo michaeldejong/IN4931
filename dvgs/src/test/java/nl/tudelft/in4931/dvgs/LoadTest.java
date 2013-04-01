@@ -37,7 +37,7 @@ public class LoadTest extends LocalTest {
 		Thread.sleep(100);
 		
 		int x = 0;
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 20; i++) {
 			List<Job> jobs = Lists.newArrayList();
 			for (int j = 0; j < 500; j++) {
 				jobs.add(new Job(x++, 10000));
@@ -50,15 +50,6 @@ public class LoadTest extends LocalTest {
 		
 		ResourceManager resourceManager = new ResourceManager(InetAddress.getByName("127.0.0.1"), 1000);
 
-		for (int i = 0; i < 30; i++) {
-			List<Job> jobs = Lists.newArrayList();
-			for (int j = 0; j < 500; j++) {
-				jobs.add(new Job(x++, 10000));
-			}
-			
-			getResourceManager(0).offerJob(Jobs.of(jobs), false);
-		}
-		
 		while (counter.get() != 10000) {
 			Thread.sleep(100);
 		}

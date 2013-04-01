@@ -20,14 +20,14 @@
 \usepackage{graphicx}
 \usepackage{titlesec}
 \usepackage{hyperref}
-\titleformat{\section}%
-  [hang]% <shape>
-  {\normalfont\bfseries\Large}% <format>
-  {}% <label>
-  {0pt}% <sep>
-  {}% <before code>
-\renewcommand{\thesection}{}
-\renewcommand{\thesubsection}{\arabic{subsection}}
+%\titleformat{\section}%
+%  [hang]% <shape>
+%  {\normalfont\bfseries\Large}% <format>
+%  {}% <label>
+%  {0pt}% <sep>
+%  {}% <before code>
+%\renewcommand{\thesection}{}
+%\renewcommand{\thesubsection}{\arabic{subsection}}
 
 \begin{document}
 \maketitle
@@ -64,10 +64,11 @@ There have been several attempts to link multiple grids together. But the most n
 \textit{DVGS} attempts to provide a fully distributed, very fault-tolerant layer between the grids allowing them to offload excessive load to other less utilized grids in the network. More details on the design and implementation can be found in section \ref{}.
 
 \subsection{Structure of this article}
-The remainder of this article is structured as followed: 
+The remainder of this article is structured as followed: In section \ref{sec:background} I will explain some of the requirements that have been established to which a system has to adhere. In section \ref{sec:design} I will discuss the design and implementation of the created distributed system \textit{DVGS}. In section \ref{sec:results} I will present some of the experiments and results that were done with the \textit{DVGS} system. In section \ref{sec:discussion} I will elaborate on the experiment results and properties of the constructed \textit{DVGS} system. Finally in section \ref{sec:conclusion} I will briefly state my conclusion of this report. Additionally in appendix A, a description of the time it took to construct the \textit{DVGS} system can be found.
 
 
 \section{Background on Application}
+\label{sec:background}
 % (recommended size: 0.5 pages): describe the VGS application (1 paragraph) and its requirements (1 paragraph per each of consistency, scalability, fault-tolerance, and performance). 
 
 \subsection{Previous work}
@@ -83,6 +84,7 @@ The original Virtual Grid Scheduler (\textit{VGS}) system on which \textit{DVGS}
 
 
 \section{System Design}
+\label{sec:design}
 % (recommended size: 1.5 pages) 
 % a. System overview: describe the design of your system, including the system operation, fault tolerance, and scalability components (which correspond to the homonym features required by the WantDS CTO). 
 % b. (Optional, for bonus points, see Section F) Additional System Features: describe each additional feature of your system, one sub-section per feature. 
@@ -93,7 +95,9 @@ One of the suggested means of messaging between nodes in the distributed system 
 
 \subsection{Topology}
 
-\textit{DVGS} is built with a high degree of fault-tolerance in mind. I wanted the system to continue working as long as their was at least one scheduler operational. Additionally I wanted the system to recognize new schedulers and resource managers trying to join the distributed system. In order to facilitate this, every node in the distributed system periodically scans a predefined range of IP addresses and ports. If it can establish a connection with an unknown node, it will send its currently known Topology. This object consists of all known nodes and their roles (resource manager / scheduler) in the distributed system. When an object receives a Topology object it will merge the data from that Topology with its own, and try to connect to nodes it previously did not know about. This simple mechanism allows all nodes to quickly discover each other and exchange information about what role they play in the network. Similarly if a node crashes, it will eventually (during the next scan) or immediately (if a Message could not be delivered to it) be dropped from the Topology object, which is then broadcast to the rest of the network.
+\textit{DVGS} is built with a high degree of fault-tolerance in mind. I wanted the system to continue working as long as their was at least one scheduler operational. Additionally I wanted the system to recognize new schedulers and resource managers trying to join the distributed system. In order to facilitate this, every node in the distributed system periodically scans a predefined range of IP addresses and ports. If it can establish a connection with an unknown node, it will send its currently known Topology. This object consists of all known nodes and their roles (resource manager / scheduler) in the distributed system. When an object receives a Topology object it will merge the data from that Topology with its own, and try to connect to nodes it previously did not know about. 
+
+This simple mechanism allows nodes to quickly discover each other and exchange information about what role they play in the network. If a node crashes, it will eventually (during the next scan) or immediately (if a Message could not be delivered to it) be dropped from the Topology object, which is then broadcast to the rest of the network. This same mechanism allows new nodes (both schedulers and resource managers) to join the grid when they become available.
 
 \subsection{Chain of command}
 
@@ -101,33 +105,80 @@ Schedulers are responsible for redirecting jobs to under utilized grids, each ma
 
 \subsection{Replication \& Fault-tolerance}
 
+Replication is a very important requirement in this system. If a user submits a job and the system acknowledges that submission, the user should not have to worry that the system will lose it when one of the nodes crashes. In order to ensure this, the system employs a system of replication to achieve a very high fault-tolerance.
 
+When a resource manager wants to send a message to the schedulers it first sends it to the master scheduler. Before this message is acknowledged the scheduler will forward the message to its immediate backup, which will do the same until there is a scheduler which has no immediate backup. The backup will then acknowledge the message it received from its predecessor. Eventually the master scheduler will receive an acknowledgement from its backup that it has replicated the message, upon which the master can acknowledge the original message it received from the resource manager. 
+
+In case the master scheduler has crashed, the resource managers message will time-out and will attempt to resend the message to the next scheduler in line. In case a non-master scheduler has crashed, its predecessor will receive a time-out, and attempt to replicate the message to the next backup in line. This basic scheme allows this system to replicate jobs to all schedulers in the grid, even if some schedulers have gone offline.
+
+\subsection{Scheduling}
+
+The current implementation of \textit{DVGS} employs a very simple mechanism of scheduling jobs. When a user offers a job to a resource manager, it will check locally if it has enough capacity to run this job. If it does it will send an ACCEPT message to the scheduler which includes the job information, and an index of the current cluster utilization level. If it does not have enough capacity it will send a RESCHEDULE message to the scheduler with that same information. If it finished a job the resource manager sends a FINISHED message to the scheduler also with this information. If the scheduler receives a RESCHEDULE message it will update the cluster utilization level index for that cluster, and figure out the least utilized cluster at the moment (with spare capacity). The job is then forwarded to that resource manager. If none of the resource managers have any spare capacity the scheduler will hold the job in a queue until one of the resource managers has spare capacity.
+
+The master scheduler keeps and maintains a model of the entire grid. This model describes what jobs are at which nodes in the grid and in what state (PENDING, RUNNING, FINISHED). This model is replicated to each of the schedulers as described in the previous subsection. In case the master scheduler crashes, its immediate backup will automatically take over once it notices that the master scheduler has gone offline.
 
 
 \section{Experimental Results}
-(recommended size: 1.5 pages) 
-a. Experimental setup: describe the working environments (DAS, Amazon EC2, 
-etc.), the general workload and monitoring tools and libraries, other tools and 
-libraries you have used to implement and deploy your system, other tools and 
-libraries used to conduct your experiments. 
-b. Experiments: describe the experiments you have conducted to analyze each 
-system feature, such as consistency, scalability, fault-tolerance, and 
-performance. Analyze the results obtained for each system feature. Use one 
-sub-section per experiment (or feature). In the analysis, also report: 
-i. Service metrics of the experiment, such as runtime and response time of 
-the service, etc. 
-ii. (optional) Usage metrics and costs of the experiment. 
+\label{sec:results}
+%(recommended size: 1.5 pages) 
+%a. Experimental setup: describe the working environments (DAS, Amazon EC2, etc.), the general workload and monitoring tools and libraries, other tools and libraries you have used to implement and deploy your system, other tools and libraries used to conduct your experiments. 
+%b. Experiments: describe the experiments you have conducted to analyze each system feature, such as consistency, scalability, fault-tolerance, and performance. Analyze the results obtained for each system feature. Use one sub-section per experiment (or feature). In the analysis, also report: 
+%i. Service metrics of the experiment, such as runtime and response time of the service, etc. 
+%ii. (optional) Usage metrics and costs of the experiment. 
+
+Because the development of \textit{DVGS} took considerable time for a one-person team. The time left to experiment with this system was limited. 
+
+\subsection{Experimental setup}
+\textit{DVGS} is lightweight enough to run simulations of 25 nodes (5 schedulers and 20 resource managers) on a single MacBook Air 2011 (1.8 Ghz i7, 4 GB memory). Nor the DAS cluster, nor Amazon's EC2 platform was used to run the experiments. Since the system can easily run on a single laptop, this was preferred to running the experiments on multiple physical machines since experiments are easier to monitor and execute. The system was however also tested on multiple physical machines (2 laptops and a dual-core desktop computer) as well to demonstrate that it works.
+
+\textit{DVGS} employs Java's Remote Method Invocation (RMI) to call methods on remote machines with locally specified parameters. On top of RMI a small layer of code has been built which abstracts it into a messaging system with acknowledgements. More details on this have been described in the \textit{System Design} section of this report.
+
+The system is packaged into .jar files using Maven's package command. This .jar file is then distributed to all the physical machines which will be running this software. It can be configured to either run (multiple nodes) locally on a single machine, or a single node on a single machine connected to a network of other machines.
+
+\subsection{Experiments}
+
+To test if the system meets the requirements specified earlier, we ran a simulation of 5 schedulers and 20 resource managers. These nodes were started and as soon as each node had found the other 24 nodes the simulation started. 10,000 jobs were submitted to a single resource manager in batches of 500 jobs each.
+
+\subsubsection{Consistency and fault-tolerance}
+In order to test consistency and fault-tolerance, I ran the simulation and killed one or more nodes in the grid (both schedulers and resource managers), and checked that still all 10,000 jobs were eventually marked as finished by one of the remaining schedulers. In each case the system was able verify that all 10,000 jobs had finished.
+
+\subsubsection{Scalability}
+The requirements stated a minimum scale of 5 schedulers and 20 resource managers with 10,000 submitted jobs. This is easily achievable but the current system has not been tested beyond this scale. My intuition is that the system will be able to cope with bigger scales that the specified scale, but at the cost of eventual consistency. In other words it will take longer before the system has become consistent after a change has occurred.
+
+\subsubsection{Performance}
+When jobs are offered to a resource manager and this resource manager is capable of handling the jobs itself, only ACCEPT messages are sent to the schedulers. If the resource manager is not capable of handling the jobs it sends RESCHEDULE messages to the schedulers. There are considerably more messages sent in the latter case. This message overhead becomes increasingly bigger the closer the entire grid comes to full utilization. When all resource managers are fully utilized they will automatically forward all incoming jobs to the schedulers which has to store them locally and replicate them to the all backup schedulers. Then when one or more resource managers have finished some of their jobs, the schedulers have to redirect any pending jobs to them and replicate this new information to the backup schedulers. This scenario can generate a substantial set of messages which slow down the redistribution of jobs.
+
 
 \section{Discussion}
-(recommended size: 1 page): summarize the main findings of your work 
-and discuss the tradeoffs inherent in the design of the VGS system. Should WantDS use 
-a distributed system to implement the VGS system? Try to extrapolate from the results 
-reported in Section 6.b for system workloads that are orders of magnitude higher than 
-what you have tried in real-world experiments. 
+\label{sec:discussion}
+%(recommended size: 1 page): summarize the main findings of your work and discuss the tradeoffs inherent in the design of the VGS system. Should WantDS use a distributed system to implement the VGS system? Try to extrapolate from the results reported in Section 6.b for system workloads that are orders of magnitude higher than what you have tried in real-world experiments. 
+
+\subsection{Main findings \& tradeoffs}
+
+\begin{itemize}
+\item There's an inherent issue with the volume of messaging with regards to replication of information and dealing with an highly utilized grid. \textit{DVGS} replicates all messages and state of the grid to all schedulers. The requirements listed 5 schedulers as a minimum, but 2 or 3 schedulers are enough to recover from a crash and keep running. This could greatly reduce the number of messages to be sent.
+\item Users are allowed to submit jobs but the resource managers don't have any mechanism in place to protect them from an overload of job submissions. \textit{DVGS} allows users to batch jobs before submitting them to one of the resource managers, but this is not enough to protect the system from slowing down. 
+\end{itemize}
+
+\subsection{Recommendations}
+
+\textit{DVGS} is a system which meets the requirements of WantDS. Since new nodes can be added or removed to and from the grid, it is advisable to only use 2 or 3 schedulers at any given time to be able to cope with a crashing scheduler.
 
 \section{Conclusion}
+\label{sec:conclusion}
+
+\textit{DVGS} is a system which has met all the stated requirements and also allows the operator of the system to add schedulers and resource managers to the grid at run-time. The advanced fault-tolerance ensures that no job is lost when a scheduler or resource manager crashes.
 
 \section{Appendix A}
-Time sheets (see Section E) 
+
+\begin{itemize}
+\item Total-time: 61h
+\item Think-time: 6h
+\item Development-time: 40h
+\item Experiment-time: 4h
+\item Analysis-time: 2h
+\item Wasted-time: 1h
+\item Write-time: 8h
+\end{itemize}
 
 \end{document}
